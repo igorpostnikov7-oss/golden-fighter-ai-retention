@@ -45,10 +45,18 @@ from golden_fighter.llm import LLMSetupError, build_llm
 from golden_fighter.logging_setup import configure_logging
 from golden_fighter.modeling import pipeline as modeling
 from golden_fighter.modeling.pipeline import run_scientist_pipeline
+from golden_fighter.tools.base import tool_execution_counts
 
 log = logging.getLogger(__name__)
 
 USAGE_KEYS = ("prompt_tokens", "completion_tokens", "total_tokens", "cached_prompt_tokens")
+COUNT_KEYS = ("model_api_calls", "agent_tool_executions", "successful_tool_executions", "source_check_rejections")
+# Written into every run_summary.json so a reader never confuses the two kinds of "call".
+GLOSSARY = {
+    "model_api_calls": "Paid requests to the Claude API (these cost money and use tokens).",
+    "agent_tool_executions": "Times an agent ran one of the project's Python tools (free, deterministic code).",
+    "source_check_rejections": "Agent answers sent back because a number was not credited to its real source.",
+}
 
 
 @dataclass
@@ -129,13 +137,14 @@ class GoldenFighterFlow(Flow[FlowState]):
 
     def _usage_entry(self, record: dict | None) -> dict:
         if not self._settings.use_llm:
-            return {"mode": "deterministic pipeline (no LLM)", "llm_calls": 0}
+            return {"mode": "deterministic pipeline (no LLM)"} | dict.fromkeys(COUNT_KEYS, 0)
         record = record or {}
+        tool_log = record.get("tool_calls", [])
         entry = {"mode": "crewai crew", "model": record.get("model"), "status": record.get("status"),
-                 "llm_calls": record.get("llm_calls", 0),
+                 "model_api_calls": record.get("llm_calls", 0), **tool_execution_counts(tool_log),
                  "estimated_cost_usd": record.get("estimated_cost_usd"),
                  "duration_seconds": record.get("duration_seconds"),
-                 "tool_calls": record.get("tool_calls", []), "warnings": record.get("warnings", [])}
+                 "tool_log": tool_log, "warnings": record.get("warnings", [])}
         usage = record.get("usage") or {}
         return entry | {key: usage.get(key, 0) for key in USAGE_KEYS}
 
@@ -146,8 +155,7 @@ class GoldenFighterFlow(Flow[FlowState]):
         state.exit_code = EXIT_CODES[state.status]
         crews = state.crews.values()
         costs = [c["estimated_cost_usd"] for c in crews if c.get("estimated_cost_usd") is not None]
-        state.totals = {"llm_calls": sum(c.get("llm_calls", 0) for c in crews),
-                        **{key: sum(c.get(key, 0) for c in crews) for key in USAGE_KEYS},
+        state.totals = {**{key: sum(c.get(key, 0) for c in crews) for key in COUNT_KEYS + USAGE_KEYS},
                         "estimated_cost_usd": round(sum(costs), 6) if costs else None}
         state.artifacts = {
             "analyst": artifacts.describe([s.analyst_dir / f for f in ANALYST_FILES], self._fresh["analyst"]),
@@ -176,6 +184,7 @@ class GoldenFighterFlow(Flow[FlowState]):
         state.paths = {"analyst_dir": artifacts.display_path(s.analyst_dir),
                        "scientist_dir": artifacts.display_path(s.scientist_dir)}
         state.inputs = {"seed": config.SEED}
+        state.glossary = GLOSSARY
         log.info("Flow run %s started (mode %s%s)", state.run_id, state.mode,
                  ", from existing artifacts" if s.from_artifacts else "")
         with self._stage("preflight") as stage:
@@ -328,11 +337,12 @@ def main(argv: list[str] | None = None) -> int:
         for issue in state.validation_issues:
             log.error("  %s", issue)
     totals = state.totals
-    if totals.get("llm_calls"):
-        log.info("Model usage: %s calls, %s tokens, estimated cost %s USD", totals["llm_calls"],
-                 totals.get("total_tokens"), totals.get("estimated_cost_usd"))
+    if totals.get("model_api_calls"):
+        log.info("Model API calls: %s (%s tokens, estimated cost %s USD). Agent tool executions: %s.",
+                 totals["model_api_calls"], totals.get("total_tokens"), totals.get("estimated_cost_usd"),
+                 totals.get("agent_tool_executions"))
     else:
-        log.info("Model usage: no model calls (cost 0 USD)")
+        log.info("Model API calls: none (cost 0 USD)")
     return state.exit_code
 
 

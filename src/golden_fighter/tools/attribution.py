@@ -18,7 +18,7 @@ Rules, per line of the answer:
 import re
 from collections.abc import Callable, Iterable
 
-from golden_fighter.tools.base import ToolRunLog
+from golden_fighter.tools.base import SOURCE_CHECK, ToolRunLog
 from golden_fighter.tools.grounding import ungrounded_numbers
 
 SOURCE_TAG_RE = re.compile(r"\[source:\s*([^\]]*)\]", re.IGNORECASE)
@@ -129,7 +129,7 @@ def source_check(run_log: ToolRunLog, own_tools: list[str], task_name: str) -> C
         problems = attribution_problems(output.raw, run_log.results, own_tools)
         if not problems:
             return True, output.raw
-        run_log.record("source_check", "rejected", 0.0, f"{task_name}: " + " | ".join(problems))
+        run_log.record(SOURCE_CHECK, "rejected", 0.0, f"{task_name}: " + " | ".join(problems))
         return False, ("SOURCE CHECK FAILED. Rewrite your final answer so every number is credited to the tool "
                        "whose result contains it:\n- " + "\n- ".join(problems))
 

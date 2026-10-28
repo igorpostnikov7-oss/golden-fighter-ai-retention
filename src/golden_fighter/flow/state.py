@@ -37,6 +37,7 @@ class FlowState(BaseModel):
     metrics: dict | None = None
     inputs: dict = Field(default_factory=dict)
     paths: dict[str, str] = Field(default_factory=dict)
+    glossary: dict[str, str] = Field(default_factory=dict)
 
     @property
     def failed(self) -> bool:

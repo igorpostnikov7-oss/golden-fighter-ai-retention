@@ -76,8 +76,14 @@ def test_run_summary_reports_usage_cost_and_metrics(tmp_path, raw_csv):
     assert summary == state.model_dump(mode="json")
     assert not (run_dir / FAILURE_REPORT_FILE).exists()
     analyst, scientist = summary["crews"]["analyst"], summary["crews"]["scientist"]
-    assert analyst["llm_calls"] > 0 and scientist["llm_calls"] > 0
-    assert summary["totals"]["llm_calls"] == analyst["llm_calls"] + scientist["llm_calls"] == len(llm.calls)
+    assert analyst["model_api_calls"] > 0 and scientist["model_api_calls"] > 0
+    totals = summary["totals"]
+    assert totals["model_api_calls"] == analyst["model_api_calls"] + scientist["model_api_calls"] == len(llm.calls)
+    # paid model calls and free tool runs are counted separately (mock: analyst runs 7 tools, scientist 5)
+    assert analyst["agent_tool_executions"] == len(analyst["tool_log"]) - analyst["source_check_rejections"] == 7
+    assert scientist["agent_tool_executions"] == scientist["successful_tool_executions"] == 5
+    assert totals["agent_tool_executions"] == 12
+    assert {"model_api_calls", "agent_tool_executions"} <= set(summary["glossary"])
     assert summary["totals"]["total_tokens"] == analyst["total_tokens"] + scientist["total_tokens"] > 0
     assert summary["totals"]["estimated_cost_usd"] == pytest.approx(
         analyst["estimated_cost_usd"] + scientist["estimated_cost_usd"])
@@ -92,7 +98,7 @@ def test_run_summary_reports_usage_cost_and_metrics(tmp_path, raw_csv):
 
 def test_no_llm_mode_runs_the_same_flow_with_the_deterministic_pipelines(tmp_path, raw_csv):
     state = run_flow(_settings(tmp_path, raw_path=raw_csv, use_llm=False))
-    assert state.status == "succeeded" and state.totals["llm_calls"] == 0
+    assert state.status == "succeeded" and state.totals["model_api_calls"] == 0
     assert state.crews["analyst"]["mode"].startswith("deterministic")
     assert all(e["produced_by_this_run"] for group in state.artifacts.values() for e in group)
 
@@ -114,7 +120,7 @@ def test_failed_gate_stops_the_flow_before_crew_2(tmp_path, analyst_out):
 
     report = (_run_dir(state) / FAILURE_REPORT_FILE).read_text(encoding="utf-8")
     assert "Validation gate" in report and "UNIT CHANGE" in report
-    assert "The Data Scientist crew did not start" in report and "No model calls were made" in report
+    assert "The Data Scientist crew did not start" in report and "No model API calls were made" in report
     summary = json.loads((_run_dir(state) / SUMMARY_FILE).read_text(encoding="utf-8"))
     assert summary["status"] == "validation_failed" and summary["exit_code"] == 1
 
@@ -187,7 +193,7 @@ def test_api_error_in_crew_2_is_reported_with_its_usage(tmp_path, analyst_out):
                      llm=scripted_llm({}, fail_with=error))
     assert state.status == "error" and state.failed_stage == "scientist" and state.exit_code == 2
     assert "API key was rejected" in state.failure_reason
-    assert state.crews["scientist"]["llm_calls"] == 1
+    assert state.crews["scientist"]["model_api_calls"] == 1
     report = (_run_dir(state) / FAILURE_REPORT_FILE).read_text(encoding="utf-8")
     assert "started but did not finish" in report
 
@@ -205,7 +211,7 @@ def test_data_changed_during_crew_2_is_a_validation_failure_with_usage(tmp_path,
     script["Model Trainer & Evaluator"] = [tamper_then_train, final("Trained.")]
     state = run_flow(_settings(tmp_path, analyst_dir=analyst, from_artifacts=True), llm=scripted_llm(script))
     assert state.status == "validation_failed" and state.failed_stage == "scientist"
-    assert state.crews["scientist"]["llm_calls"] > 0  # usage of the stopped crew is still reported
+    assert state.crews["scientist"]["model_api_calls"] > 0  # usage of the stopped crew is still reported
     assert not (tmp_path / "scientist" / "model.joblib").exists()
 
 

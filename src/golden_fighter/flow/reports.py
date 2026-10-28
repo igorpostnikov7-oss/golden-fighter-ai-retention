@@ -58,9 +58,11 @@ def render_failure_report(state: FlowState) -> str:
     lines += [f"| {_STAGE_NAMES.get(s.name, s.name)} | {s.status} | {s.seconds:.1f} | "
               f"{s.detail.splitlines()[0][:150] if s.detail else ''} |" for s in state.stages]
     totals = state.totals
-    usage = (f"{totals['llm_calls']} model calls, {totals.get('total_tokens', 0)} tokens, estimated cost "
-             f"{totals.get('estimated_cost_usd')} USD." if totals.get("llm_calls")
-             else "No model calls were made in this run (cost: 0 USD).")
+    usage = (f"{totals['model_api_calls']} model API calls (paid), {totals.get('total_tokens', 0)} tokens, "
+             f"estimated cost {totals.get('estimated_cost_usd')} USD." if totals.get("model_api_calls")
+             else "No model API calls were made in this run (cost: 0 USD).")
+    if totals.get("agent_tool_executions"):
+        usage += f" Agent tool executions (free Python tools): {totals['agent_tool_executions']}."
     lines += ["", "## Model usage in this run", "", usage, "", "## How to fix", ""]
     if state.status == "validation_failed":
         lines += ["1. Read the problems above: each names the column and the contract rule it breaks.",
