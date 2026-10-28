@@ -378,3 +378,60 @@ def test_scientist_crew_stops_if_data_changes_mid_run(tmp_path, analyst_copy):
 def test_cli_without_api_key_fails_fast_without_calling_the_api(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "")
     assert crew_cli.main(["analyst"]) == 2
+
+
+# --- feature importance belongs to the selected model, not the ablation (live test 28.10) -----------------------
+
+@pytest.fixture(scope="module")
+def training_run(analyst_out, tmp_path_factory) -> tuple[dict, Path]:
+    """train_and_compare_models run once on a private copy of Crew 1's artifacts: (tool result, output dir)."""
+    base = tmp_path_factory.mktemp("training_run")
+    analyst = Path(shutil.copytree(analyst_out, base / "analyst"))
+    log = ToolRunLog()
+    tools = scientist_tools(log, analyst, base / "sci")
+    for name in ("build_features", "train_and_compare_models"):
+        tools[name]._run()
+    return log.results["train_and_compare_models"], base / "sci"
+
+
+def test_feature_importance_is_the_selected_models_on_the_test_split(training_run):
+    """Recomputed from the saved model: the tool's numbers are the selected model's, on primary features only."""
+    import joblib
+
+    from golden_fighter.modeling.evaluate import feature_importance
+    result, sci = training_run
+    block = result["selected_model_feature_importance"]
+    bundle = joblib.load(sci / "model.joblib")
+    test = pd.read_csv(sci / "features.csv").query("split == 'test'")
+    assert block["model"] == result["selected_model"] == bundle["model_name"]
+    assert not set(result["leakage_ablation"]["extra_columns"]) & set(bundle["input_features"])
+    recomputed = feature_importance(bundle["pipeline"], test[bundle["input_features"]], test["churn"])[:5]
+    assert block["top_5"] == recomputed
+    assert "top_features" not in result  # the unlabelled key the agent misread is gone
+    assert "not computed" in result["leakage_ablation"]["feature_importance"]
+
+
+def _importance_line(result: dict, framing: str) -> str:
+    pairs = ", ".join(f"{f['feature']} {f['auc_drop_mean']}"
+                      for f in result["selected_model_feature_importance"]["top_5"])
+    return f"- **Feature importance {framing} (AUC drop when permuted):** {pairs}. [source: train_and_compare_models]"
+
+
+def test_selected_model_importance_presented_as_ablation_is_caught(training_run):
+    result, _ = training_run
+    results, own = {"train_and_compare_models": result}, ["train_and_compare_models"]
+    # the live mistake, verbatim framing: rejected with a pointer to the right section
+    live = _importance_line(result, "in the ablation").replace(
+        ". [source", ". These come from the ablation run, which is diagnostic only. [source")
+    problems = attribution_problems(live, results, own)
+    assert len(problems) == 1 and "belong to selected_model_feature_importance" in problems[0]
+    # with the old, unlabelled tool output the same line passed: this is why the output was renamed
+    old = {k: v for k, v in result.items() if k != "selected_model_feature_importance"}
+    old["top_features"] = result["selected_model_feature_importance"]["top_5"]
+    assert attribution_problems(live, {"train_and_compare_models": old}, own) == []
+    # correct framings still pass
+    assert attribution_problems(_importance_line(result, "of the selected model"), results, own) == []
+    ablation = result["leakage_ablation"]
+    for ok in (f"The leakage ablation scored test ROC-AUC {ablation['test_roc_auc']}.",
+               f"The ablation's CV ROC-AUC {ablation['cv_roc_auc']['mean']} is diagnostic only."):
+        assert attribution_problems(ok, results, own) == []

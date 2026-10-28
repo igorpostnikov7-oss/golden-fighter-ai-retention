@@ -80,10 +80,19 @@ class TrainAndCompareTool(ScientistTool):
                               "test": {m: r["test"][m] for m in TEST_METRICS}}
                        for name, r in report["results"].items()},
             "selected_confusion_matrix": report["results"][selected]["test"]["confusion_matrix"],
-            "leakage_ablation": {"extra_columns": report["ablation"]["extra_columns"],
+            # Labelled with its model and data: a bare "top_features" next to the ablation was read as the
+            # ablation's importance in the live test (train.py computes it for the selected model only).
+            "selected_model_feature_importance": {
+                "model": selected,
+                "data": "test split, primary features only (no leakage-ablation columns)",
+                "method": "permutation importance: drop in test ROC-AUC when one column is shuffled",
+                "top_5": report["feature_importance"][:5],
+            },
+            "leakage_ablation": {"model": f"{selected} + {', '.join(report['ablation']['extra_columns'])}",
+                                 "extra_columns": report["ablation"]["extra_columns"],
                                  "cv_roc_auc": report["ablation"]["cv"]["roc_auc"],
-                                 "test_roc_auc": report["ablation"]["test"]["roc_auc"]},
-            "top_features": report["feature_importance"][:5],
+                                 "test_roc_auc": report["ablation"]["test"]["roc_auc"],
+                                 "feature_importance": "not computed: diagnostic experiment, never deployed"},
             "warnings": report["warnings"],
         }
 

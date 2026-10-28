@@ -12,6 +12,8 @@ Rules, per line of the answer:
   - A line with numbers that names a report in prose ("the cleaning report", "evaluation.json") must also
     be credited to the tool that produced that report, so prose cannot claim a different source.
   - Every number must appear in the credited tools' results (same rounding rules as grounding.py).
+  - A line that calls its numbers part of one experiment ("the ablation") may not use numbers that exist
+    only in another, clearly labelled section of the result (the selected model's feature importance).
 """
 import re
 from collections.abc import Callable, Iterable
@@ -38,6 +40,11 @@ SOURCE_ALIASES: dict[str, set[str]] = {
     "model card": {"train_and_compare_models", "write_model_reports"},
     "model_card.md": {"train_and_compare_models", "write_model_reports"},
 }
+# (phrase in the line, result section its numbers must not come from, phrase that makes the line correct).
+# Live test 28.10: the selected model's feature importance was presented as the ablation's.
+SECTION_CLAIMS: list[tuple[str, str, str]] = [
+    ("ablation", "selected_model_feature_importance", "selected model"),
+]
 MAX_PROBLEMS = 6
 
 SOURCE_RULES = (
@@ -54,6 +61,27 @@ def _reports_named(line: str) -> dict[str, set[str]]:
     """Reports the line names in words (outside its [source: ...] tags)."""
     prose = SOURCE_TAG_RE.sub("", line).lower()
     return {alias: tools for alias, tools in SOURCE_ALIASES.items() if alias in prose}
+
+
+def _section_mislabels(line: str, facts: dict[str, dict]) -> list[str]:
+    """Problems for numbers that the line attributes to a section of a result they do not belong to."""
+    prose = SOURCE_TAG_RE.sub("", line)
+    lowered = prose.lower()
+    numbers = ungrounded_numbers(prose, {})  # the line's real numbers (small integers are always allowed)
+    problems = []
+    for phrase, section, correct in SECTION_CLAIMS:
+        if phrase not in lowered or correct in lowered:
+            continue
+        for name, result in facts.items():
+            if not isinstance(result, dict) or section not in result:
+                continue
+            rest = {key: value for key, value in result.items() if key != section}
+            only_there = [n for n in numbers
+                          if not ungrounded_numbers(n, result[section]) and ungrounded_numbers(n, rest)]
+            if only_there:
+                problems.append(f"'{line[:120]}' presents {', '.join(only_there)} as part of the {phrase}, but in "
+                                f"{name} they belong to {section}. Say which model they describe.")
+    return problems
 
 
 def attribution_problems(text: str, results: dict[str, dict], own_tools: Iterable[str]) -> list[str]:
@@ -81,6 +109,7 @@ def attribution_problems(text: str, results: dict[str, dict], own_tools: Iterabl
             if mismatched and ungrounded_numbers(line, {}):  # only lines with real numbers make a claim
                 problems.append(f"'{line[:120]}' names {', '.join(mismatched)} but its numbers are credited to "
                                 f"{', '.join(sources) or 'no tool'}. Name the source that produced them.")
+            problems += _section_mislabels(line, facts)
             continue
         credited = ", ".join(sources) if sources else "no tool"
         found_in = sorted(name for name, result in results.items() if not ungrounded_numbers(" ".join(bad), result))
