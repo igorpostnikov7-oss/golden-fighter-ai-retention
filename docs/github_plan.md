@@ -3,16 +3,14 @@
 Nothing here has been run. Creating the repository, pushing and opening Pull Requests all wait for the project
 owner's approval. The course requires a **public** repository and real Pull Requests.
 
-## Decisions needed before publishing
-1. **Publish the data files?** The Kaggle license (CC BY-NC-SA 4.0) allows redistribution with attribution, for
-   non-commercial use, under the same license. Publishing `data/raw/gym_churn.csv`, `clean_data.csv` and
-   `features.csv` lets anyone clone and run everything immediately and puts all 8 deliverables in the repo,
-   as the brief asks. If yes: remove the three CSV lines from `.gitignore`, add a `data/LICENSE-DATA.md`
-   notice (CC BY-NC-SA 4.0, credit to Adrian Vinueza, "modified: columns renamed, member_id added"), commit.
-   If no: the README download step stays, and the checklist marks those two deliverables as "generated on run".
-2. **A license for the code?** Without one, others may read the public code but not reuse it. MIT is the common
-   choice for course projects. The data keeps its own license either way.
-3. **Repository name.** Proposal: `golden-fighter-ai-retention` (account `igorpostnikov7-oss`, public).
+## Decisions (made by the owner, 2026-10-28)
+1. **Data:** the dataset and its derivatives are published under their original CC BY-NC-SA 4.0 terms
+   (`data/LICENSE-DATA.md`); `data/raw/gym_churn.csv`, `clean_data.csv` and `features.csv` are committed byte for
+   byte (`*.csv -text`).
+2. **Code:** MIT License (`LICENSE`), scoped to the code and documentation.
+3. **Repository:** `igorpostnikov7-oss/golden-fighter-ai-retention`, public.
+4. Still open: the commit author e-mail (`a personal address (rewritten)` in every commit) — keep it, or rewrite the
+   author to the GitHub no-reply address before the first push (it changes every commit id).
 
 ## Branches and Pull Requests
 The milestone branches are stacked, each built on the previous one:

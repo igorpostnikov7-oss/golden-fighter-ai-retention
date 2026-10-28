@@ -16,7 +16,7 @@ Status: ✅ done · ⏳ waiting for the project owner's approval (publishing) ·
 | Descriptive analytics and EDA | ✅ | `eda_report.html` (descriptive statistics and 9 charts, including correlations and a leakage scan) |
 | Visual insights and business summaries | ✅ | `eda_report.html`, `insights.md` (agent-written summary, numbers grounded in `insight_facts.json`) |
 | Dataset contract for Crew 2 | ✅ | `dataset_contract.json` (pydantic schema `contract/schema.py`) |
-| Outputs: clean_data.csv, eda_report.html, insights.md, dataset_contract.json | ✅ / ⏳ | All four produced by the verified live run; three committed. `clean_data.csv` holds member-level rows and waits for approval to publish (license allows it, see `data/raw/DATA_SOURCE.md`) |
+| Outputs: clean_data.csv, eda_report.html, insights.md, dataset_contract.json | ✅ | All four produced by the verified live run and committed (`clean_data.csv` under CC BY-NC-SA 4.0, see `data/LICENSE-DATA.md`) |
 
 ## Crew 2: Data Scientist (at least 3 agents)
 
@@ -29,7 +29,7 @@ Status: ✅ done · ⏳ waiting for the project owner's approval (publishing) ·
 | Train at least one model | ✅ | `model.joblib` (logistic regression, selected) |
 | Compare at least two variations | ✅ | Baseline vs logistic regression vs random forest, plus a leakage ablation (`evaluation_report.md`) |
 | Model card: purpose, data, metrics, limitations, ethics | ✅ | `model_card.md` |
-| Outputs: features.csv, model.joblib, evaluation_report.md, model_card.md | ✅ / ⏳ | All four produced by the verified live run; three committed. `features.csv` (member-level rows) waits for approval, like `clean_data.csv` |
+| Outputs: features.csv, model.joblib, evaluation_report.md, model_card.md | ✅ | All four produced by the verified live run and committed (`features.csv` under CC BY-NC-SA 4.0) |
 
 ## The Flow
 
@@ -40,7 +40,7 @@ Status: ✅ done · ⏳ waiting for the project owner's approval (publishing) ·
 | Validation: required features exist before modeling | ✅ | `validate_model_features` (missing, unknown, forbidden, leaky, target) |
 | Deterministic steps | ✅ | `SEED = 42`; byte-identical reruns tested (`test_pipeline_is_deterministic`, `test_training_is_reproducible`) |
 | Clear logging | ✅ | `logging` everywhere; `run_summary.json` per run; `logs/crew_runs.jsonl` for live crews |
-| Artifacts saved inside the repo | ✅ / ⏳ | Committed: 6 of the 8 deliverables + `run_summary.json` of the verified live run. The 2 member-level CSVs wait for approval |
+| Artifacts saved inside the repo | ✅ | All 8 deliverables + `run_summary.json` of the verified live run are committed; the dataset too |
 | Fails gracefully | ✅ | Gate failure → `failure_report.md`, exit code 1, Crew 2 never starts; API/setup errors → exit code 2 |
 | Crew 2 never reaches past the contract | ✅ | Contract is the only shared interface; tools have fixed paths; tests above |
 
