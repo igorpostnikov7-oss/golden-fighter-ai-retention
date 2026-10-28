@@ -35,10 +35,12 @@ CC BY-NC-SA 4.0 = Attribution, NonCommercial, ShareAlike.
   `features.csv`) must carry the same CC BY-NC-SA 4.0 license.
 
 ## Publication status in this repository
-- Redistribution is allowed under the conditions above, so the raw CSV and the row-level derived files
-  **may** be published in the public repo with this attribution and license notice.
-- Until the project owner approves publishing them, `data/raw/*.csv`, `artifacts/analyst/clean_data.csv` and
-  `artifacts/scientist/features.csv` stay gitignored, and a fresh clone needs the download step above.
-- The project's own source code is separate from the data and is not covered by the data license.
+- Decided by the project owner: the dataset and its derivatives are included in the repository under their
+  original CC BY-NC-SA 4.0 terms, with the notice in [`data/LICENSE-DATA.md`](../LICENSE-DATA.md). A fresh clone
+  therefore runs without the download step (the steps above remain for anyone who wants the original file).
+- `gym_churn.csv` is committed byte for byte (`.gitattributes`: `*.csv -text`), so its SHA-256 above holds
+  after cloning on any OS.
+- The project's own source code is licensed separately under MIT (`LICENSE`) and is not covered by the data
+  license.
 - Provenance note: the Kaggle page does not name an upstream source for the data. The license above is the
-  one the Kaggle uploader states; we rely on it as published.
+  one the Kaggle uploader states (verified again on 2026-10-28); we rely on it as published.
