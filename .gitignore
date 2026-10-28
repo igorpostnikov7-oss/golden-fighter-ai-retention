@@ -20,6 +20,7 @@ logs/*
 # Dataset + row-level derived data: kept out of git until the Kaggle license is verified
 data/raw/*.csv
 artifacts/analyst/clean_data.csv
+artifacts/scientist/features.csv
 
 # Scratch / data dumps
 *.zip
