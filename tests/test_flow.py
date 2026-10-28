@@ -246,6 +246,26 @@ def test_break_demo_proves_the_flow_stops_before_modelling(project_copy):
                          project_copy / "artifacts" / "scientist") == validated
 
 
+def test_break_demo_on_a_fresh_clone_explains_instead_of_crashing(project_copy, capfd):
+    """A fresh clone has no clean_data.csv (member-level rows are not committed): readable message, exit 2."""
+    (project_copy / "artifacts" / "analyst" / "clean_data.csv").unlink()
+    assert flow_main.main(["--demo-break", "unit_x100"]) == 2
+    output = capfd.readouterr()
+    assert "--no-llm" in output.err + output.out and "Traceback" not in output.err
+    assert not (project_copy / "artifacts" / "_broken" / "runs").exists()
+
+
+def test_break_demo_on_a_fresh_clone_uses_the_free_runs_artifacts(project_copy):
+    """After the free run, the demo breaks a copy of the files it wrote; the validated folder is untouched."""
+    analyst = project_copy / "artifacts" / "analyst"
+    shutil.copytree(analyst, project_copy / "artifacts" / "_no_llm" / "analyst")
+    (analyst / "clean_data.csv").unlink()
+    before = _fingerprints(analyst, project_copy / "artifacts" / "_no_llm" / "analyst")
+    assert flow_main.demo_source_dir() == project_copy / "artifacts" / "_no_llm" / "analyst"
+    assert flow_main.main(["--demo-break", "unit_x100"]) == 1
+    assert _fingerprints(analyst, project_copy / "artifacts" / "_no_llm" / "analyst") == before
+
+
 def test_no_llm_cli_writes_beside_the_validated_artifacts(project_copy):
     validated = _fingerprints(project_copy / "artifacts" / "analyst", project_copy / "artifacts" / "scientist")
     assert flow_main.main(["--no-llm", "--from-artifacts"]) == 0

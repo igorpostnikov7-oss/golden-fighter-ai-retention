@@ -316,3 +316,14 @@ def test_insights_screen_without_member_level_data_still_shows_the_rest(project)
     (project / "artifacts" / "analyst" / "clean_data.csv").unlink()  # as on a fresh clone
     at = _page("insights").run()
     assert not at.exception and at.metric and "Flow החינמי" in _texts(at)
+
+
+def test_break_demo_screen_on_a_fresh_clone_uses_the_free_runs_files(project):
+    analyst = project / "artifacts" / "analyst"
+    shutil.copytree(analyst, project / "artifacts" / "_no_llm" / "analyst")  # what the free run writes
+    (analyst / "clean_data.csv").unlink()  # not committed to Git
+    at = _page("gate_demo").run()
+    assert not at.exception and "עוברים את השער" in _texts(at) and "_no_llm" in _texts(at)
+    at.button[0].click().run()
+    assert not at.exception and "נעצר בשלב: 3 - שער הבדיקה" in _texts(at)
+    assert {m.label: m.value for m in at.metric}["הנתונים המקוריים"] == "לא השתנו"

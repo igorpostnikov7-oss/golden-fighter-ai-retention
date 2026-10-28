@@ -32,7 +32,7 @@ from golden_fighter import config
 from golden_fighter.analysis.cleaning import load_raw
 from golden_fighter.analysis.pipeline import run_analyst_pipeline
 from golden_fighter.contract.breakers import SCENARIOS, make_broken_copy
-from golden_fighter.contract.validator import run_gate
+from golden_fighter.contract.validator import REQUIRED_ARTIFACTS, run_gate
 from golden_fighter.crews.analyst_crew.crew import OUTPUT_FILES as ANALYST_FILES
 from golden_fighter.crews.analyst_crew.crew import run_analyst_crew
 from golden_fighter.crews.runner import CrewRunError
@@ -292,10 +292,20 @@ def run_flow(settings: FlowSettings | None = None, llm=None) -> FlowState:
     return flow.state
 
 
+def demo_source_dir() -> Path:
+    """The Crew 1 artifacts a break demo copies: the validated ones, or on a fresh clone (where the member-level
+    clean_data.csv is not committed) the complete set the free --no-llm run wrote. Neither is ever modified."""
+    for folder in (config.ANALYST_DIR, config.ARTIFACTS_DIR / "_no_llm" / "analyst"):
+        if all((folder / name).is_file() and (folder / name).stat().st_size for name in REQUIRED_ARTIFACTS):
+            return folder
+    raise FileNotFoundError("The break demo needs a complete set of Crew 1 artifacts, including clean_data.csv. "
+                            "Run the free Flow first: python -m golden_fighter.flow.main --no-llm")
+
+
 def demo_settings(scenario: str) -> FlowSettings:
     """Break a COPY of Crew 1's artifacts and point the Flow at it. Real artifacts are never touched."""
     base = config.ARTIFACTS_DIR / "_broken"  # gitignored
-    broken = make_broken_copy(config.ANALYST_DIR, scenario, base / scenario)
+    broken = make_broken_copy(demo_source_dir(), scenario, base / scenario)
     return FlowSettings(analyst_dir=broken, scientist_dir=base / f"{scenario}_scientist", runs_dir=base / "runs",
                         use_llm=False, from_artifacts=True, demo_scenario=scenario)
 
@@ -326,7 +336,11 @@ def main(argv: list[str] | None = None) -> int:
     configure_logging(config.LOGS_DIR / "flow.log")
 
     if args.demo_break:
-        settings = demo_settings(args.demo_break)
+        try:
+            settings = demo_settings(args.demo_break)
+        except FileNotFoundError as err:
+            log.error("%s", err)
+            return EXIT_CODES["error"]
         log.info("Break demo '%s': %s", args.demo_break, SCENARIOS[args.demo_break][0])
     elif args.no_llm:
         settings = no_llm_settings(args.from_artifacts)
