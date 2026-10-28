@@ -23,7 +23,7 @@ The milestone branches are stacked, each built on the previous one:
 | 4 | `m4-crews` → `m3-modeling` | 9 | two CrewAI crews, tools, grounding, source check |
 | 5 | `m5-flow` → `m4-crews` | 3 | the CrewAI Flow, failure report, run summary |
 | 6 | `m6-streamlit` → `m5-flow` | 4 | Streamlit app (Hebrew) |
-| 7 | `m7-docs` → `m6-streamlit` | see branch | README, architecture, checklist, license, fresh-clone test, presentation |
+| 7 | `m7-docs` → `m6-streamlit` | 6 + this update | README, architecture, checklist, licenses + dataset, fresh-clone fix, presentation (M8 included) |
 
 Merge in order 1 → 7. When a base branch is merged and deleted, GitHub moves the next PR's base to `main`
 automatically.
