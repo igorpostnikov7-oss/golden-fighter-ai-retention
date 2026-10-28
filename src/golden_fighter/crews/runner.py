@@ -4,6 +4,7 @@ The crew's final answer is never trusted on its own. After kickoff the runner ch
   1. no tool hit a data-validation failure (if one did, that DataValidationError is raised);
   2. the model-call budget was not exceeded and the API did not fail (else CrewRunError);
   3. every expected artifact was (re)written during this run (else CrewRunError).
+Each task's final answer also passes a source check (tools/attribution.py) before the next task starts.
 Token usage and the estimated cost are logged to logs/crew_runs.jsonl for every run, even a failed one.
 """
 import json
@@ -18,6 +19,7 @@ from crewai import Agent, Crew, Process, Task
 
 from golden_fighter import config
 from golden_fighter.llm import describe_api_error, estimate_cost_usd, llm_call_budget
+from golden_fighter.tools.attribution import SOURCE_RULES, source_check
 from golden_fighter.tools.base import ToolRunLog
 
 log = logging.getLogger(__name__)
@@ -59,7 +61,11 @@ def _load_yaml(path: Path) -> dict:
 
 
 def build_crew(config_dir: Path, llm, tools: dict, verbose: bool = False) -> Crew:
-    """Agents and tasks from agents.yaml / tasks.yaml; each agent gets exactly the tools its YAML names."""
+    """Agents and tasks from agents.yaml / tasks.yaml; each agent gets exactly the tools its YAML names.
+
+    Every task gets the source rules and a deterministic source check on its final answer.
+    """
+    run_log = next(iter(tools.values())).run_log  # all tools of one run share one log
     agents_cfg = _load_yaml(config_dir / "agents.yaml")
     tasks_cfg = _load_yaml(config_dir / "tasks.yaml")
     agents = {
@@ -71,9 +77,12 @@ def build_crew(config_dir: Path, llm, tools: dict, verbose: bool = False) -> Cre
     }
     tasks: dict[str, Task] = {}
     for key, cfg in tasks_cfg.items():
+        own_tools = agents_cfg[cfg["agent"]]["tools"]
         tasks[key] = Task(name=key, description=cfg["description"].strip(),
-                          expected_output=cfg["expected_output"].strip(), agent=agents[cfg["agent"]],
-                          context=[tasks[name] for name in cfg.get("context", [])])
+                          expected_output=cfg["expected_output"].strip() + "\n" + SOURCE_RULES,
+                          agent=agents[cfg["agent"]], context=[tasks[name] for name in cfg.get("context", [])],
+                          guardrail=source_check(run_log, own_tools, key),
+                          guardrail_max_retries=config.SOURCE_CHECK_MAX_RETRIES)
     return Crew(agents=list(agents.values()), tasks=list(tasks.values()), process=Process.sequential,
                 max_rpm=config.CREW_MAX_RPM, cache=False, verbose=verbose)
 
@@ -124,8 +133,11 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
         fail("validation_failed", str(run_log.blocked_by))
         raise run_log.blocked_by
     if error is not None:
+        source_failures = [c["detail"] for c in run_log.calls if c["tool"] == "source_check"]
         if budget["exceeded"]:
             reason = f"stopped after the model-call budget of {max_llm_calls} calls was used up"
+        elif source_failures and "guardrail" in str(error):
+            reason = f"an agent's final answer failed the source check after a rewrite: {source_failures[-1]}"
         else:
             reason = describe_api_error(error) or f"crew failed: {type(error).__name__}: {str(error)[:300]}"
         fail("error", reason)

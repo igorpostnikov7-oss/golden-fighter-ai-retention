@@ -34,12 +34,29 @@ class NoArgs(BaseModel):
 class ToolRunLog:
     calls: list[dict] = field(default_factory=list)
     blocked_by: DataValidationError | None = None
+    results: dict[str, dict] = field(default_factory=dict)  # last successful result per tool (source check)
 
     def record(self, tool: str, status: str, seconds: float, detail: str = "") -> None:
         self.calls.append({"tool": tool, "status": status, "seconds": round(seconds, 2), "detail": detail[:300]})
 
     def succeeded(self, tool: str) -> bool:
         return any(c["tool"] == tool and c["status"] == "ok" for c in self.calls)
+
+
+def contract_reasons(contract: dict) -> dict[str, list[str]]:
+    """The contract's own words on why each forbidden or excluded column is kept out of the model."""
+    reasons = {}
+    for col in contract["columns"]:
+        name = col["name"]
+        if name not in contract["forbidden_features"] + contract["excluded_from_primary_model"]:
+            continue
+        notes = [f"role: {col['role']}", col["description"]]
+        if col.get("sensitive"):
+            notes.append("sensitive attribute")
+        notes += [col[key] for key in ("leakage_note", "availability_note") if col.get(key)]
+        notes += [a for a in contract.get("assumptions", []) if name in a]
+        reasons[name] = notes
+    return reasons
 
 
 class PipelineTool(BaseTool):
@@ -74,5 +91,6 @@ class PipelineTool(BaseTool):
             log.exception("Tool %s failed", self.name)
             return f"ERROR: {self.name} failed with {type(err).__name__}: {err}. Do not invent results."
         self.run_log.record(self.name, "ok", time.perf_counter() - start)
+        self.run_log.results[self.name] = result
         text = json.dumps(result, ensure_ascii=False, default=str)
         return text if len(text) <= MAX_RESULT_CHARS else text[:MAX_RESULT_CHARS] + " ...(truncated)"

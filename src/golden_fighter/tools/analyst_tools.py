@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from golden_fighter.analysis import pipeline as steps
 from golden_fighter.analysis.cleaning import load_raw
 from golden_fighter.contract.validator import run_gate
-from golden_fighter.tools.base import PipelineTool, ToolInputRejected
+from golden_fighter.tools.base import PipelineTool, ToolInputRejected, contract_reasons
 from golden_fighter.tools.grounding import ungrounded_numbers, upsert_agent_section
 
 SUMMARY_MIN_CHARS = 150
@@ -85,14 +85,16 @@ class WriteInsightsSummaryTool(PipelineTool):
 class BuildContractTool(PipelineTool):
     name: str = "build_contract"
     description: str = ("Builds dataset_contract.json from clean_data.csv: types, allowed values, ranges, units, "
-                        "target, forbidden and leakage-excluded columns, cross-column rules. Returns a summary.")
+                        "target, forbidden and leakage-excluded columns (with the contract's reasons), cross-column "
+                        "rules. Returns a summary.")
     out_dir: Path
 
     def execute(self) -> dict:
         contract = steps.contract_step(self.out_dir)
         return {key: contract[key] for key in ("contract_version", "prediction_time", "row_count_min",
-                                               "target", "forbidden_features", "excluded_from_primary_model",
-                                               "cross_column_rules")} | {
+                                               "row_count_observed", "target", "forbidden_features",
+                                               "excluded_from_primary_model", "cross_column_rules")} | {
+            "reasons": contract_reasons(contract), "column_count": len(contract["columns"]),
             "columns": [c["name"] for c in contract["columns"]]}
 
 

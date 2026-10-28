@@ -11,7 +11,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from golden_fighter.modeling import pipeline as steps
 from golden_fighter.modeling.features import ENGINEERED_FEATURES, ensure_crew1_artifact_dir, load_validated_inputs
-from golden_fighter.tools.base import PipelineTool, ToolInputRejected
+from golden_fighter.tools.base import PipelineTool, ToolInputRejected, contract_reasons
 from golden_fighter.tools.grounding import ungrounded_numbers, upsert_agent_section
 
 SUMMARY_MIN_CHARS = 150
@@ -33,7 +33,8 @@ class ScientistTool(PipelineTool):
 class InspectContractTool(ScientistTool):
     name: str = "inspect_contract"
     description: str = ("Runs the validation gate, then returns what the dataset contract allows: target, primary "
-                        "model features, forbidden and leakage-excluded columns, and the engineered features.")
+                        "model features, forbidden and leakage-excluded columns with the contract's reasons, and the "
+                        "engineered features.")
 
     def execute(self) -> dict:
         _, contract = load_validated_inputs(self.analyst_dir)
@@ -42,6 +43,7 @@ class InspectContractTool(ScientistTool):
                 "primary_features": contract.primary_feature_columns,
                 "forbidden_features": contract.forbidden_features,
                 "excluded_from_primary_model": contract.excluded_from_primary_model,
+                "reasons": contract_reasons(contract.model_dump()),
                 "engineered_features": ENGINEERED_FEATURES}
 
 

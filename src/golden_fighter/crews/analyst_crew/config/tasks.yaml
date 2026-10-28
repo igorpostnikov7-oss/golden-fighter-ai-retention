@@ -1,5 +1,7 @@
 # Run in this order. Rules for every task: use only numbers returned by your tools; if a tool answers
 # STOP or REFUSED, do not call more tools and give that failure message as your final answer.
+# The runner appends the source rules (tools/attribution.py) to every expected_output and checks each
+# final answer in code: every number must appear in the result of the tool it is credited to.
 clean_data_task:
   agent: data_quality_engineer
   description: >
@@ -28,5 +30,8 @@ contract_task:
     Call build_contract once, then call contract_self_check once to run the validation gate on
     the four analyst artifacts. You cannot change the gate's verdict.
   expected_output: >
-    Contract version, target column, forbidden and excluded columns (one short reason each),
-    the cross-column rules, and the gate result (PASSED with the number of checks, or the failure).
+    Contract version, target column, forbidden and excluded columns with one short reason each taken
+    from the reasons returned by build_contract (write "no reason stated" if there is none), the
+    cross-column rules, and the gate result (PASSED with the number of checks, or the failure).
+    Numbers from earlier tasks keep the source they were credited to there (for example a leakage
+    AUC comes from run_eda, not from the cleaning report).

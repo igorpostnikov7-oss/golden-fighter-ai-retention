@@ -1,5 +1,7 @@
 # Run in this order. Rules for every task: use only numbers returned by your tools; if a tool answers
 # STOP or REFUSED, do not call more tools and give that failure message as your final answer.
+# The runner appends the source rules (tools/attribution.py) to every expected_output and checks each
+# final answer in code: every number must appear in the result of the tool it is credited to.
 features_task:
   agent: feature_engineer
   description: >
@@ -8,7 +10,8 @@ features_task:
     leakage-excluded column. If a tool answers STOP, REFUSED or ERROR, stop and report it.
   expected_output: >
     The primary features used, the engineered features, the excluded columns with a short reason
-    each, and the row counts of the train and test splits.
+    each taken from the reasons returned by inspect_contract (write "no reason stated" if there is
+    none), and the row counts of the train and test splits.
 
 training_task:
   agent: model_trainer_evaluator

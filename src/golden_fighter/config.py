@@ -38,6 +38,7 @@ AGENT_MAX_ITER = 5             # tool-use rounds per task before the agent must 
 AGENT_MAX_RETRY_LIMIT = 0      # CrewAI re-running a whole failed task would double the cost
 CREW_MAX_RPM = 20              # requests per minute across a crew
 MAX_LLM_CALLS_PER_CREW = 20    # budget: the 21st model call in one crew run is blocked
+SOURCE_CHECK_MAX_RETRIES = 1   # an answer failing the source check gets one rewrite, then the crew stops
 
 # USD per 1M tokens (input, output), prompts <= 100K tokens. Used for the cost estimate only.
 LLM_PRICES_PER_MTOK = {

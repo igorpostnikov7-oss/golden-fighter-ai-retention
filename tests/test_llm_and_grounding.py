@@ -1,9 +1,10 @@
-"""M4 guardrails without any crew: number grounding, LLM setup, cost estimate, API error messages."""
+"""M4 guardrails without any crew: number grounding, source check, LLM setup, cost estimate, API errors."""
 import anthropic
 import httpx
 import pytest
 
 from golden_fighter.llm import LLMSetupError, build_llm, describe_api_error, estimate_cost_usd
+from golden_fighter.tools.attribution import attribution_problems
 from golden_fighter.tools.grounding import SECTION_START, ungrounded_numbers, upsert_agent_section
 
 FACTS = {"members": 4000, "churn_rate": 0.2652, "by_contract": [{"group": "1", "churn_rate": 0.4232}],
@@ -76,3 +77,36 @@ def test_no_retries_mode_disables_sdk_and_crewai_retries(monkeypatch):
     monkeypatch.setenv("ANTHROPIC_API_KEY", "placeholder-not-a-key")
     llm = build_llm("anthropic/claude-haiku-5-5", retries=False)  # builds the client only, no request
     assert llm.max_retries == 0 and crewai_retry._LLM_RATE_LIMIT_MAX_ATTEMPTS == 1
+
+
+# --- source check on final answers (tools/attribution.py) ---------------------------------------------------
+
+RESULTS = {"clean_data": {"rows_in": 4000, "rows_out": 4000},
+           "run_eda": {"churn_rate": 0.2652, "leakage_findings": [{"column": "x", "auc": 0.7749}]},
+           "build_contract": {"contract_version": "1.1", "row_count_min": 2000, "column_count": 15}}
+CONTRACT_TOOLS = ["build_contract", "contract_self_check"]
+
+
+@pytest.mark.parametrize("answer", [
+    "Contract version 1.1, at least 2,000 rows, 15 columns.",                       # own tools, no tag needed
+    "The clean data has 4,000 rows. [source: clean_data]",                           # another agent's tool, credited
+    "The leakage column has a single-column AUC of 0.7749 in the EDA facts. [source: run_eda]",
+    "Built from clean_data.csv; target is churn.",                                   # no numbers, nothing to check
+])
+def test_correctly_sourced_answers_pass(answer):
+    assert attribution_problems(answer, RESULTS, CONTRACT_TOOLS) == []
+
+
+@pytest.mark.parametrize("answer, expected", [
+    # the live-test slip: the AUC is credited to the contract agent's own tools; the hint names the real source
+    ("The cleaning report notes it has AUC 0.7749.", "0.7749 not found in the result of build_contract"),
+    ("It has AUC 0.7749. [source: clean_data]", "They appear in: run_eda"),
+    # right number, right tag, but the prose names a different report
+    ("The cleaning report notes AUC 0.7749. [source: run_eda]", "names cleaning report"),
+    # a source that never ran in this run is an invented source
+    ("Recall is 0.81. [source: train_and_compare_models]", "did not produce a result in this run"),
+    ("Churn is 31.4% overall. [source: run_eda]", "No tool produced them"),
+])
+def test_wrong_or_invented_sources_are_caught(answer, expected):
+    problems = attribution_problems(answer, RESULTS, CONTRACT_TOOLS)
+    assert len(problems) == 1 and expected in problems[0]

@@ -179,6 +179,58 @@ def test_stale_artifacts_from_an_earlier_run_do_not_count(tmp_path, raw_csv):
         run_analyst_crew(llm=llm, raw_path=raw_csv, out_dir=out_dir)
 
 
+def _leakage_answer(out_dir: Path, credit: str):
+    """The contract agent's final answer from the live test, with the leakage AUC credited by `credit`."""
+    def step(_messages):
+        facts = json.loads((out_dir / "insight_facts.json").read_text(encoding="utf-8"))
+        auc = next(f["univariate_auc"] for f in facts["leakage_findings"] if f["risk"] == "high")
+        return final("Contract built, gate PASSED.\n- avg_class_frequency_current_month leaks the outcome. "
+                     + credit.replace("AUC", f"AUC {auc}"))
+    return step
+
+
+MISCREDITED = "The cleaning report notes it has AUC and partly records the churn itself."
+CORRECTED = "The EDA facts give it a single-column AUC. [source: run_eda]"
+
+
+def test_miscredited_metric_is_sent_back_and_corrected(tmp_path, raw_csv, isolated_logs):
+    """The live-test slip: an AUC from the EDA facts credited to the cleaning report. Code catches it."""
+    out_dir = tmp_path / "analyst"
+    script = _analyst_script(out_dir)
+    script["Data Contract Specialist"] = [tool("build_contract"), tool("contract_self_check"),
+                                          _leakage_answer(out_dir, MISCREDITED), _leakage_answer(out_dir, CORRECTED)]
+    result = run_analyst_crew(llm=scripted_llm(script), raw_path=raw_csv, out_dir=out_dir)
+
+    assert "[source: run_eda]" in result.final_answer and "cleaning report" not in result.final_answer
+    checks = [c for c in result.tool_calls if c["tool"] == "source_check"]
+    assert len(checks) == 1 and "contract_task" in checks[0]["detail"]
+    assert "not found in the result of build_contract, contract_self_check" in checks[0]["detail"]
+    assert "They appear in: run_eda" in checks[0]["detail"]
+
+
+def test_agent_that_keeps_inventing_a_source_stops_the_crew(tmp_path, raw_csv, isolated_logs):
+    out_dir = tmp_path / "analyst"
+    script = _analyst_script(out_dir)
+    script["Data Contract Specialist"] = [tool("build_contract"), tool("contract_self_check"),
+                                          _leakage_answer(out_dir, MISCREDITED)]  # repeats the same answer
+    with pytest.raises(CrewRunError, match="failed the source check"):
+        run_analyst_crew(llm=scripted_llm(script), raw_path=raw_csv, out_dir=out_dir)
+    record = _run_records(isolated_logs)[-1]
+    assert record["status"] == "error"
+    assert sum(c["tool"] == "source_check" for c in record["tool_calls"]) == 1 + config.SOURCE_CHECK_MAX_RETRIES
+
+
+def test_contract_tools_give_the_contracts_own_reasons(tmp_path, analyst_copy):
+    """Agents are asked for a reason per excluded column, so the tools must supply it (no guessing)."""
+    contract = json.loads((analyst_copy / "dataset_contract.json").read_text(encoding="utf-8"))
+    log = ToolRunLog()
+    scientist_tools(log, analyst_copy, tmp_path)["inspect_contract"]._run()
+    reasons = log.results["inspect_contract"]["reasons"]
+    assert set(reasons) == set(contract["forbidden_features"] + contract["excluded_from_primary_model"])
+    assert any("protected attribute" in note for note in reasons["gender"])
+    assert any("same month" in note for note in reasons["avg_class_frequency_current_month"])
+
+
 # --- limits and API errors --------------------------------------------------------------------------------
 
 def test_call_budget_stops_a_runaway_agent(tmp_path, raw_csv, monkeypatch, isolated_logs):
