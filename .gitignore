@@ -1,0 +1,38 @@
+# Secrets
+.env
+.env.*
+*.env
+!.env.example
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Logs (a sample run log may be committed explicitly)
+logs/*
+!logs/.gitkeep
+
+# Dataset + row-level derived data: kept out of git until the Kaggle license is verified
+data/raw/*.csv
+artifacts/analyst/clean_data.csv
+
+# Scratch / data dumps
+*.zip
+*.tmp
+data/scratch/
+artifacts/_broken/
+
+# Course materials (not ours to publish)
+final_project.html
+*.docx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
