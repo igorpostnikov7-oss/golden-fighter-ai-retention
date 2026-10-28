@@ -19,9 +19,7 @@ import re
 from collections.abc import Callable, Iterable
 
 from golden_fighter.tools.base import SOURCE_CHECK, ToolRunLog
-from golden_fighter.tools.grounding import ungrounded_numbers
-
-SOURCE_TAG_RE = re.compile(r"\[source:\s*([^\]]*)\]", re.IGNORECASE)
+from golden_fighter.tools.grounding import SOURCE_TAG_RE, ungrounded_numbers
 
 # Report names that claim where a number comes from -> the tools whose results contain those numbers.
 # Input files ("built from clean_data.csv") are not listed: naming an input is not a claim about a number.
@@ -53,7 +51,8 @@ SOURCE_RULES = (
     "that is not yours, end that line with [source: tool_name]. Name a tool, file or report as the source "
     "of a number only if that tool's result contains the number; never guess a source. If a number is not in "
     "a tool result, leave it out completely: do not write it at all, not even in a sentence saying it is "
-    "missing, unknown or not reported. Do not count or compute numbers yourself."
+    "missing, unknown or not reported; in a table, write a dash (-) for a value no tool returned. Do not "
+    "count or compute numbers yourself."
 )
 
 

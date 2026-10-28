@@ -8,7 +8,7 @@ from golden_fighter.analysis import pipeline as steps
 from golden_fighter.analysis.cleaning import load_raw
 from golden_fighter.contract.validator import run_gate
 from golden_fighter.tools.base import PipelineTool, ToolInputRejected, contract_reasons
-from golden_fighter.tools.grounding import ungrounded_numbers, upsert_agent_section
+from golden_fighter.tools.grounding import strip_source_tags, ungrounded_numbers, upsert_agent_section
 
 SUMMARY_MIN_CHARS = 150
 SUMMARY_MAX_CHARS = 1500
@@ -68,7 +68,7 @@ class WriteInsightsSummaryTool(PipelineTool):
     max_usage_count: int | None = 3
 
     def execute(self, summary: str) -> dict:
-        summary = summary.strip()
+        summary = strip_source_tags(summary)
         if not SUMMARY_MIN_CHARS <= len(summary) <= SUMMARY_MAX_CHARS:
             raise ToolInputRejected(f"The summary must be {SUMMARY_MIN_CHARS}-{SUMMARY_MAX_CHARS} characters, "
                                     f"got {len(summary)}.")
