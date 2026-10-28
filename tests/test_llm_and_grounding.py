@@ -67,3 +67,12 @@ def test_api_errors_are_found_anywhere_in_the_exception_chain():
     except RuntimeError as outer:
         assert describe_api_error(outer).startswith("rate limit reached")
     assert describe_api_error(ValueError("unrelated")) is None
+
+
+def test_no_retries_mode_disables_sdk_and_crewai_retries(monkeypatch):
+    import crewai.llms.retry as crewai_retry
+
+    monkeypatch.setattr(crewai_retry, "_LLM_RATE_LIMIT_MAX_ATTEMPTS", 3)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "placeholder-not-a-key")
+    llm = build_llm("anthropic/claude-haiku-5-5", retries=False)  # builds the client only, no request
+    assert llm.max_retries == 0 and crewai_retry._LLM_RATE_LIMIT_MAX_ATTEMPTS == 1

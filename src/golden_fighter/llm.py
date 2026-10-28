@@ -16,8 +16,18 @@ class LLMSetupError(RuntimeError):
     """The LLM cannot be used (no key, unknown model). Raised before any API call is made."""
 
 
-def build_llm(model: str | None = None):
-    """The real Anthropic LLM with the project's limits. Fails fast, without an API call, if no key is set."""
+def disable_automatic_retries() -> None:
+    """Make every failed API request final: no CrewAI rate-limit retries (the SDK side is max_retries=0)."""
+    import crewai.llms.retry as crewai_retry
+
+    crewai_retry._LLM_RATE_LIMIT_MAX_ATTEMPTS = 1  # read at call time by run_with_rate_limit_retry
+
+
+def build_llm(model: str | None = None, retries: bool = True):
+    """The real Anthropic LLM with the project's limits. Fails fast, without an API call, if no key is set.
+
+    retries=False: a failed request is not repeated by the Anthropic SDK or by CrewAI.
+    """
     model = model or config.LLM_MODEL
     if not model.startswith("anthropic/"):
         raise LLMSetupError(f"Only Anthropic models are configured for this project, got '{model}'")
@@ -25,9 +35,11 @@ def build_llm(model: str | None = None):
         raise LLMSetupError("ANTHROPIC_API_KEY is not set. Add it to .env (see .env.example); no API call was made.")
     from crewai import LLM
 
+    if not retries:
+        disable_automatic_retries()
     # No temperature: Claude 5.5 models reject non-default sampling parameters.
     return LLM(model=model, max_tokens=config.LLM_MAX_TOKENS, timeout=config.LLM_TIMEOUT_SECONDS,
-               max_retries=config.LLM_MAX_RETRIES)
+               max_retries=config.LLM_MAX_RETRIES if retries else 0)
 
 
 def model_id(model: str) -> str:

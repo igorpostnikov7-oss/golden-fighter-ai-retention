@@ -12,7 +12,7 @@ import logging
 from golden_fighter import config
 from golden_fighter.crews.runner import CrewRunError
 from golden_fighter.errors import DataValidationError
-from golden_fighter.llm import LLMSetupError
+from golden_fighter.llm import LLMSetupError, build_llm
 from golden_fighter.logging_setup import configure_logging
 
 log = logging.getLogger(__name__)
@@ -22,6 +22,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("crew", choices=["analyst", "scientist"])
     parser.add_argument("--verbose", action="store_true", help="show the agents' reasoning and tool calls")
+    parser.add_argument("--no-retries", action="store_true", help="never repeat a failed API request")
     args = parser.parse_args(argv)
     configure_logging(config.LOGS_DIR / f"{args.crew}_crew.log")
 
@@ -30,7 +31,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         from golden_fighter.crews.scientist_crew.crew import run_scientist_crew as run
     try:
-        result = run(verbose=args.verbose)
+        result = run(llm=build_llm(retries=not args.no_retries), verbose=args.verbose)
     except DataValidationError as err:
         log.error("Stopped by data validation:\n%s", err)
         return 1
