@@ -8,6 +8,7 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 - **Streamlit app** shows the results and a live "break the data" demo.
 
 > Status: work in progress. M1 done: deterministic Data Analyst pipeline + dataset contract.
+> M2 done: validation gate + 13 "break it on purpose" scenarios.
 
 ## Dataset
 Public Kaggle dataset "Gym Customers Features and Churn". See [`data/raw/DATA_SOURCE.md`](data/raw/DATA_SOURCE.md).
@@ -26,6 +27,13 @@ Run the Data Analyst pipeline (plain Python, no API calls). It reads `data/raw/g
 `clean_data.csv`, `eda_report.html`, `insights.md` and `dataset_contract.json` to `artifacts/analyst/`:
 ```powershell
 .\.venv\Scripts\python.exe -m golden_fighter.analysis.pipeline
+```
+
+Check the artifacts against the contract (exit code 0 = passed, 1 = failed), then break a copy on purpose:
+```powershell
+.\.venv\Scripts\python.exe -m golden_fighter.contract.gate
+.\.venv\Scripts\python.exe scripts\break_data.py unit_x100     # dollars -> cents: the gate refuses
+.\.venv\Scripts\python.exe scripts\break_data.py --list        # all 13 scenarios
 ```
 
 Run instructions for the Flow and the app will be added as those milestones land.
