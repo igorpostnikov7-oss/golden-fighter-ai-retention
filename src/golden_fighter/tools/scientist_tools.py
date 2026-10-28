@@ -9,8 +9,11 @@ from pathlib import Path
 
 from pydantic import BaseModel, Field, model_validator
 
+from golden_fighter import config
+
 from golden_fighter.modeling import pipeline as steps
-from golden_fighter.modeling.features import ENGINEERED_FEATURES, ensure_crew1_artifact_dir, load_validated_inputs
+from golden_fighter.modeling.features import (ENGINEERED_FEATURES, TEST_SIZE, ensure_crew1_artifact_dir,
+                                              load_validated_inputs)
 from golden_fighter.tools.base import PipelineTool, ToolInputRejected, contract_reasons
 from golden_fighter.tools.grounding import ungrounded_numbers, upsert_agent_section
 
@@ -49,11 +52,16 @@ class InspectContractTool(ScientistTool):
 
 class BuildFeaturesTool(ScientistTool):
     name: str = "build_features"
-    description: str = ("Runs the validation gate, then writes features.csv: member_id, a stratified 80/20 "
-                        "train/test split label, the contract's primary features, engineered features and the target.")
+    description: str = ("Runs the validation gate, then writes features.csv: member_id, a stratified train/test "
+                        "split label, the contract's primary features, engineered features and the target. Returns "
+                        "the row counts and the split settings the code used.")
 
     def execute(self) -> dict:
-        return steps.features_step(self.analyst_dir, self.out_dir)
+        result = steps.features_step(self.analyst_dir, self.out_dir)
+        # The settings the split code actually used, so agents can state them (and credit them) exactly.
+        result["split_settings"] = {"train_share": round(1 - TEST_SIZE, 4), "test_share": TEST_SIZE,
+                                    "stratified_on": "target", "random_seed": config.SEED}
+        return result
 
 
 class TrainAndCompareTool(ScientistTool):

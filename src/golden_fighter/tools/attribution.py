@@ -44,8 +44,9 @@ SOURCE_RULES = (
     "SOURCE RULES (checked by code; an answer that breaks them is sent back): use only numbers from tool "
     "results, either your own tools or tools credited in your context. When a line uses numbers from a tool "
     "that is not yours, end that line with [source: tool_name]. Name a tool, file or report as the source "
-    "of a number only if that tool's result contains the number; never guess a source, and leave a number "
-    "out if you are not sure where it comes from. Do not count or compute numbers yourself."
+    "of a number only if that tool's result contains the number; never guess a source. If a number is not in "
+    "a tool result, leave it out completely: do not write it at all, not even in a sentence saying it is "
+    "missing, unknown or not reported. Do not count or compute numbers yourself."
 )
 
 

@@ -20,6 +20,7 @@ from golden_fighter.crews.analyst_crew.crew import build_analyst_crew, run_analy
 from golden_fighter.crews.runner import RUN_LOG_FILE, CrewRunError
 from golden_fighter.crews.scientist_crew.crew import build_scientist_crew, run_scientist_crew
 from golden_fighter.errors import DataValidationError
+from golden_fighter.tools.attribution import SOURCE_RULES, attribution_problems
 from golden_fighter.tools.base import ToolRunLog
 from golden_fighter.tools.scientist_tools import scientist_tools
 from mock_llm import final, scripted_llm, tool
@@ -229,6 +230,80 @@ def test_contract_tools_give_the_contracts_own_reasons(tmp_path, analyst_copy):
     assert set(reasons) == set(contract["forbidden_features"] + contract["excluded_from_primary_model"])
     assert any("protected attribute" in note for note in reasons["gender"])
     assert any("same month" in note for note in reasons["avg_class_frequency_current_month"])
+
+
+# The two Feature Engineer answers the live Haiku test (28.10) rejected, verbatim. 80/20 is true (TEST_SIZE = 0.2),
+# but build_features did not return it, so the source check correctly refused it twice and the crew stopped.
+LIVE_FIRST_ANSWER = (
+    "**Row counts [source: build_features]:**\n- Train: 3200 rows\n- Test: 800 rows\n- Total: 4000 rows\n"
+    "**Output columns in features.csv [source: build_features]:** member_id, split, near_location, partner, "
+    "promo_friends, phone, contract_period, group_visits, age, avg_additional_charges_total, "
+    "month_to_end_contract, lifetime, avg_class_frequency_total, contract_elapsed_share, is_new_member, "
+    "social_ties, churn. The split is stratified 80/20.")
+LIVE_REWRITE = (
+    "The contract is version 1.1 with target `churn` [source: inspect_contract].\n"
+    "**Row counts [source: build_features]:**\n- Train: 3200 rows\n- Test: 800 rows\n- Total: 4000 rows\n"
+    "The split label is a stratified train/test split. The 80/20 ratio is not stated in any tool result, "
+    "so it is not reported here.")
+
+
+@pytest.fixture
+def feature_results(tmp_path, analyst_copy) -> dict:
+    """Real results of the Feature Engineer's two tools on the test data."""
+    log = ToolRunLog()
+    tools = scientist_tools(log, analyst_copy, tmp_path / "sci")
+    for name in ("inspect_contract", "build_features"):
+        tools[name]._run()
+    return log.results
+
+
+@pytest.mark.parametrize("answer", [LIVE_FIRST_ANSWER, LIVE_REWRITE])
+def test_live_split_answers_failed_without_split_settings_and_pass_with_them(answer, raw_df, feature_results):
+    own = ["inspect_contract", "build_features"]
+    rows = feature_results["build_features"]["split_counts"]
+    # the test data is smaller than the real data: swap in its row counts, keep everything else verbatim
+    answer = (answer.replace("Train: 3200", f"Train: {rows['train']}").replace("Test: 800", f"Test: {rows['test']}")
+              .replace("Total: 4000", f"Total: {sum(rows.values())}"))
+    before = {**feature_results, "build_features": {k: v for k, v in feature_results["build_features"].items()
+                                                    if k != "split_settings"}}
+    assert any("80, 20 not found" in p for p in attribution_problems(answer, before, own))
+    assert attribution_problems(answer, feature_results, own) == []
+
+
+def test_build_features_reports_the_split_the_code_used(feature_results):
+    from golden_fighter.modeling.features import TEST_SIZE
+    settings = feature_results["build_features"]["split_settings"]
+    assert settings == {"train_share": 1 - TEST_SIZE, "test_share": TEST_SIZE, "stratified_on": "target",
+                        "random_seed": config.SEED}
+    counts = feature_results["build_features"]["split_counts"]
+    assert counts["test"] / sum(counts.values()) == pytest.approx(TEST_SIZE, abs=0.01)
+
+
+@pytest.mark.parametrize("answer, bad", [
+    ("The split is stratified 70/30.", "70, 30"),                       # a different ratio is still invented
+    ("The split is stratified 80/20 with 3,201 training rows.", "3,201"),
+    ("The split is 80/20. [source: run_eda]", "did not produce a result"),  # invented source still refused
+    ("Random forest recall is 0.81. [source: build_features]", "0.81 not found"),
+])
+def test_split_settings_do_not_open_the_door_to_invented_numbers(answer, bad, feature_results):
+    problems = attribution_problems(answer, feature_results, ["inspect_contract", "build_features"])
+    assert len(problems) == 1 and bad in problems[0]
+
+
+def test_every_task_is_told_to_omit_unsupported_numbers_completely(tmp_path, analyst_copy):
+    crew = build_scientist_crew(scripted_llm({}), ToolRunLog(), analyst_copy, tmp_path / "sci")
+    assert "not even in a sentence saying it is missing" in SOURCE_RULES
+    assert all(task.expected_output.endswith(SOURCE_RULES) for task in crew.tasks)
+
+
+def test_feature_engineer_can_state_the_split_ratio(tmp_path, analyst_copy):
+    """The crew-level replay: the live first answer's 80/20 sentence now passes with no rewrite."""
+    out_dir = tmp_path / "scientist"
+    script = _scientist_script(out_dir)
+    script["Feature Engineer"] = [tool("inspect_contract"), tool("build_features"),
+                                  final("Features built. The split is stratified 80/20.")]
+    result = run_scientist_crew(llm=scripted_llm(script), analyst_dir=analyst_copy, out_dir=out_dir)
+    assert result.status == "ok" and not [c for c in result.tool_calls if c["tool"] == "source_check"]
 
 
 # --- limits and API errors --------------------------------------------------------------------------------
