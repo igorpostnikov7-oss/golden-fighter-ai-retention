@@ -3,11 +3,11 @@
 <!-- agent-summary:start -->
 ## Summary for the retention team (written by the Model Card agent)
 
-- **What the model predicts:** whether a member is likely to churn, using only information available at prediction time. The selected model is logistic_regression, chosen on highest mean 5-fold CV ROC-AUC on the training set (0.9565 vs 0.9541 for random_forest). [source: train_and_compare_models]
-- **How well it finds churners (test set):** recall 90.1% and precision 74.3%, with ROC-AUC 0.9568. [source: train_and_compare_models]
-- **Fairness result:** recall by gender is 0.8911 (group 0) and 0.9099 (group 1). By age band, the 30-34 group has the lowest recall at 0.7619 and precision of 0.5424, and the 35+ group has no actual churners, so its recall and precision are not defined. [source: write_model_reports]
-- **Main limitation:** the leakage ablation (adding avg_class_frequency_current_month) scored higher, but that column is only complete after the prediction time, so it is diagnostic only and must not be deployed. Performance in the 30-34 age band is noticeably weaker and should be monitored.
-- **Allowed use:** use scores only to decide which members to offer support, outreach, or retention help. Never use them to penalise members, such as raising prices, restricting access, or denying service.
+- **What it predicts:** The model scores each member's likelihood of churning, so the retention team can decide who to offer support to. It is not a verdict on any member.
+- **How well it finds churners:** The selected logistic regression model catches 90.1% of actual churners on the test set (recall), and 74.3% of the members it flags do churn (precision). [source: train_and_compare_models]
+- **Fairness result:** Recall differs by group. For gender it is 89.1% for group 0 and 91.0% for group 1. For age bands it ranges from 76.2% (30-34) to 97.5% (under 25), and the 35+ band has no churners in the evaluation, so recall is not reported for it. Review these gaps before acting on scores for any group. [source: write_model_reports]
+- **Main limitation:** The higher-scoring model that uses avg_class_frequency_current_month is leakage and was rejected, because that feature partly records the churn itself. Its scores must not be quoted as performance. [source: train_and_compare_models]
+- **Allowed use:** Use scores only to prioritise retention offers and extra help. Never use them to penalise, restrict, or lower the service level of any member.
 <!-- agent-summary:end -->
 
 ## Model details

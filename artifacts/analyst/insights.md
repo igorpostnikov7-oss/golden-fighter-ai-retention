@@ -5,11 +5,11 @@ _Produced by the Data Analyst crew from `clean_data.csv`. All numbers are comput
 <!-- agent-summary:start -->
 ## Analyst summary (written by the EDA & Insights agent)
 
-- **Overall churn:** 1,061 of 4,000 members churned, a churn rate of 26.5%.
-- **Strongest drivers:** Short contracts and short tenure. 1-month contracts churn at 42.3%, versus 12.5% for 6-month and 2.4% for 12-month contracts. Members in their first 0-1 months churn at 61.4%, versus 0.3% for members with 7+ months. Under-25s churn at 66.2%, and the 30-34 band at 11.8%.
-- **Engagement and referral signals:** Members who attend group classes churn at 17.3%, versus 33.0% for those who do not. Members who joined via friend referral churn at 15.8%, versus 31.3% for those who did not.
-- **High-risk segment:** 1-month contract, joined in the last 0-1 months, and no group classes. It holds 644 members (16.1% of the base) and churns at 80.3%. This is the first group to target with onboarding and class-enrolment outreach.
-- **Caveat on leakage:** avg_class_frequency_current_month (AUC 0.7749) is measured in the same month as the churn label, so it partly records the churn itself. It is excluded from the primary model. Treat the drivers above as associations, not proven causes.
+- **Overall churn:** 26.5% of members churned (1061 of 4000 members).
+- **Strongest drivers:** Short contracts and short tenure churn most. Members on 1-month contracts churn at 42.3%, versus 12.5% on 6-month and 2.4% on 12-month contracts. Members in their first 0-1 months churn at 61.4%, and members with 7+ months churn at 0.3%. Under-25s churn at 66.2%.
+- **High-risk segment:** 1-month contract holders who joined in the last 0-1 months and do not attend group classes make up 16.1% of members (644 people) and churn at 80.3%. This is the first group to target with onboarding and contract-upgrade offers.
+- **Possible levers:** Group-class attendance, friend referral, and partner-company membership are each linked to lower churn (17.3%, 15.8%, and 19.4% when present, versus 33.0%, 31.3%, and 33.3% when absent). These are associations, not proven causes, so test them before investing heavily.
+- **Caveat on leakage risk:** avg_class_frequency_current_month is rated high leakage risk (univariate AUC 0.7749). It is measured in the same month as the churn label, so it partly records the churn itself. It was excluded from the primary model and should not be used to predict churn or to set retention targets.
 <!-- agent-summary:end -->
 
 ## Executive summary
