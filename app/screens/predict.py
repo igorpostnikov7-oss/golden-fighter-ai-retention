@@ -3,18 +3,18 @@ import streamlit as st
 
 from golden_fighter.dashboard import data, ui
 
-ui.header("Predict churn for one member", "Pick an example or change the values, then score the member with the "
-          "saved model. The inputs are checked against the data contract first.")
+ui.header("חיזוי עזיבה למתאמן אחד", "בחרו דוגמה או שנו את הערכים, ואז חשבו את הסיכון עם המודל השמור. "
+          "הערכים נבדקים קודם מול חוזה הנתונים.")
 
-YES_NO = {1: "Yes", 0: "No"}
-BAND_TEXT = {"low": ("Low risk", "No action needed now."),
-             "medium": ("Medium risk", "Worth a friendly check-in."),
-             "high": ("High risk", "Offer help now: onboarding, a class invitation or a longer contract.")}
+YES_NO = {1: "כן", 0: "לא"}
+BAND_TEXT = {"low": ("סיכון נמוך", "לא נדרשת פעולה כרגע."),
+             "medium": ("סיכון בינוני", "כדאי ליצור קשר ידידותי."),
+             "high": ("סיכון גבוה", "הציעו עזרה עכשיו: ליווי בתחילת הדרך, הזמנה לשיעור או מנוי ארוך יותר.")}
 
 
 def render():
     bundle = data.model_bundle(ui.paths())
-    example = st.segmented_control("Start from an example", list(data.EXAMPLE_MEMBERS),
+    example = st.segmented_control("התחילו מדוגמה", list(data.EXAMPLE_MEMBERS),
                                    default=list(data.EXAMPLE_MEMBERS)[0], key="example")
     values = data.EXAMPLE_MEMBERS[example or list(data.EXAMPLE_MEMBERS)[0]]
 
@@ -35,28 +35,28 @@ def render():
                 member[name] = col.number_input(
                     field["label"], min_value=cast(field["min"]) if field["min"] is not None else None,
                     max_value=cast(field["max"]) if field["max"] is not None else None, value=cast(values[name]),
-                    step=1 if is_int else 0.5, key=key, help=f"Unit: {field['unit']}")
-        st.form_submit_button("Score this member", type="primary")
+                    step=1 if is_int else 0.5, key=key, help=f"יחידה: {field['unit']}")
+        st.form_submit_button("חשבו את הסיכון של המתאמן", type="primary")
 
     try:
         result = data.predict_member(bundle, member)  # the form's current values (defaults = the example)
     except data.DataValidationError as err:
-        issues = "\n".join(f"- {issue}" for issue in err.issues)
-        st.error(f"**These values break the data contract, so the model will not score them:**\n\n{issues}",
+        issues = "\n".join(f"- {data.issue_in_hebrew(issue)}" for issue in err.issues)
+        st.error(f"**הערכים האלה מפרים את חוזה הנתונים, ולכן המודל לא יחשב עבורם סיכון:**\n\n{issues}",
                  icon=":material/block:")
         return
 
     label, advice = BAND_TEXT[result["risk_band"]]
     left, right = st.columns([1, 2], gap="large")
-    left.metric("Chance of leaving this month", f"{result['probability']:.1%}" if result["probability"] >= 0.001
-                else "below 0.1%")
+    left.metric("הסיכוי לעזוב החודש", f"{result['probability']:.1%}" if result["probability"] >= 0.001
+                else "פחות מ-0.1%")
     left.progress(min(max(result["probability"], 0.0), 1.0))
     with right:
         box = st.error if result["risk_band"] == "high" else st.warning if result["risk_band"] == "medium" else st.success
-        box(f"**{label}.** {advice}  \nThe model {'flags' if result['flagged'] else 'does not flag'} this member "
-            f"(flag at {result['threshold']:.0%} or more).")
-        st.caption(f"Model: {data.MODEL_LABELS.get(result['model'], result['model'])}. Gender and the leaky "
-                   "current-month visit count are not inputs. Allowed use: offer help; never penalise a member.")
+        box(f"**{label}.** {advice}  \nהמודל {'מסמן' if result['flagged'] else 'לא מסמן'} את המתאמן הזה "
+            f"(סימון מ-{result['threshold']:.0%} ומעלה).")
+        st.caption(f"המודל: {data.MODEL_LABELS.get(result['model'], result['model'])}. המגדר ומספר הביקורים "
+                   "בחודש הנוכחי (שדולף מידע) אינם נתוני קלט. שימוש מותר: להציע עזרה; אף פעם לא להעניש מתאמן.")
 
 
 ui.guarded(render)

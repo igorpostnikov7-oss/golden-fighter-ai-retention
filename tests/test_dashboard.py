@@ -51,11 +51,11 @@ def _texts(at: AppTest) -> str:
 def test_model_table_spells_out_each_models_role(paths):
     evaluation = data.evaluation(paths)
     table = data.model_table(evaluation)
-    roles = dict(zip(table["Model"], table["Role"]))
-    assert roles[data.MODEL_LABELS[evaluation["selected_model"]]] == "Selected"
-    assert roles["Baseline (always guesses)"] == "Reference only"
-    assert list(table["Role"]).count("Leakage experiment - never used") == 1
-    assert table.loc[table["Role"] == "Selected", "Test ROC-AUC"].item() == \
+    roles = dict(zip(table["מודל"], table["תפקיד"]))
+    assert roles[data.MODEL_LABELS[evaluation["selected_model"]]] == data.SELECTED
+    assert roles[data.MODEL_LABELS["baseline_majority"]] == data.REFERENCE
+    assert list(table["תפקיד"]).count(data.LEAKAGE_ROLE) == 1
+    assert table.loc[table["תפקיד"] == data.SELECTED, "ROC-AUC (מבחן)"].item() == \
         evaluation["results"][evaluation["selected_model"]]["test"]["roc_auc"]
 
 
@@ -72,9 +72,26 @@ def test_example_members_are_valid_and_ranked_sensibly(paths):
 
 
 def test_prediction_refuses_values_that_break_the_contract(paths):
-    member = dict(data.EXAMPLE_MEMBERS["New member on a 1-month contract"], month_to_end_contract=9)
+    member = dict(data.EXAMPLE_MEMBERS["מתאמן חדש, מנוי לחודש אחד"], month_to_end_contract=9)
     with pytest.raises(DataValidationError, match="cannot exceed"):
         data.predict_member(data.model_bundle(paths), member)
+
+
+def test_prediction_problems_are_shown_in_hebrew_and_unknown_ones_stay_readable():
+    assert data.issue_in_hebrew("'month_to_end_contract' cannot exceed 'contract_period'") == \
+        "מספר החודשים שנותרו למנוי לא יכול להיות גדול מתקופת המנוי."
+    assert data.issue_in_hebrew("'age' above the contract maximum 100 years") == \
+        "גיל (שנים): גבוה מהמקסימום שבחוזה (100 שנים)."
+    assert data.issue_in_hebrew("something new") == "something new"  # never hidden
+
+
+def test_every_agent_scenario_and_stage_has_a_hebrew_text():
+    from golden_fighter.contract.breakers import SCENARIOS
+    from golden_fighter.dashboard import hebrew
+
+    assert set(data.agents_overview()["שם ב-CrewAI"]) == set(hebrew.AGENTS)
+    assert set(SCENARIOS) == set(hebrew.SCENARIOS)
+    assert all(text in hebrew.SCENARIOS.values() for text in data.break_scenarios().values())
 
 
 def test_documents_are_shown_without_markers_or_source_tags(tmp_path):
@@ -107,19 +124,19 @@ def test_run_history_lists_every_kind_newest_first_and_skips_damaged_files(paths
     (project / "artifacts" / "runs" / "broken").mkdir()
     (project / "artifacts" / "runs" / "broken" / "run_summary.json").write_text("{not json", encoding="utf-8")
     history = data.run_history(paths)
-    assert list(history["Run"]) == ["demo", "free", "full"]
-    assert history.set_index("Run").loc["full", "Model API calls"] == 3
+    assert list(history[data.RUN]) == ["demo", "free", "full"]
+    assert history.set_index(data.RUN).loc["full", data.API_CALLS] == 3
 
 
 def test_agents_overview_lists_six_agents_with_their_tools():
     agents = data.agents_overview()
-    assert len(agents) == 6 and agents["Crew"].nunique() == 2
-    assert agents.set_index("Agent").loc["Model Trainer & Evaluator", "Tools"] == "train_and_compare_models"
+    assert len(agents) == 6 and agents["צוות"].nunique() == 2
+    assert agents.set_index("שם ב-CrewAI").loc["Model Trainer & Evaluator", "כלים"] == "train_and_compare_models"
 
 
 def test_missing_artifacts_raise_a_message_that_says_what_to_do(tmp_path):
     empty = data.Paths(tmp_path / "a", tmp_path / "s", tmp_path)
-    with pytest.raises(data.MissingArtifact, match="free Flow"):
+    with pytest.raises(data.MissingArtifact, match="Flow החינמי"):
         data.evaluation(empty)
 
 
@@ -134,8 +151,8 @@ def test_every_screen_renders_without_errors(project, page):
 
 def test_main_app_opens_on_the_overview(project):
     at = AppTest.from_file(str(APP / "streamlit_app.py"), default_timeout=180).run()
-    assert not at.exception and at.title[0].value == "Golden Fighter AI - Retention Intelligence"
-    assert "never calls the Claude API" in _texts(at) + "".join(c.value for c in at.sidebar.caption)
+    assert not at.exception and at.title[0].value == "Golden Fighter AI: חיזוי נטישת מתאמנים"
+    assert "אף פעם לא פונה ל-Claude API" in _texts(at) + "".join(c.value for c in at.sidebar.caption)
 
 
 def test_screens_explain_missing_results_instead_of_crashing(tmp_path, monkeypatch):
@@ -143,33 +160,33 @@ def test_screens_explain_missing_results_instead_of_crashing(tmp_path, monkeypat
         monkeypatch.setattr(config, name, tmp_path / "empty" / name.lower())
     for page in ("overview", "insights", "model", "predict"):
         at = _page(page).run()
-        assert not at.exception and "not available yet" in _texts(at), page
+        assert not at.exception and "עדיין לא זמינות" in _texts(at), page
 
 
 def test_overview_shows_the_agent_summary_and_headline_metrics(project):
     at = _page("overview").run()
     labels = [m.label for m in at.metric]
-    assert "Leavers caught" in labels and "ROC-AUC" in labels
+    assert "עוזבים שזוהו" in labels and "ROC-AUC" in labels
 
 
 def test_prediction_screen_scores_and_refuses_invalid_input(project):
     at = _page("predict").run()
-    assert at.metric[0].label == "Chance of leaving this month"
-    months_left = next(n for n in at.number_input if n.label == "Months left on the contract")
+    assert at.metric[0].label == "הסיכוי לעזוב החודש"
+    months_left = next(n for n in at.number_input if n.label == "חודשים שנותרו למנוי")
     months_left.set_value(9)
     at.button[0].click().run()  # the form's submit button
-    assert "break the data contract" in _texts(at) and "cannot exceed" in _texts(at)
+    assert "מפרים את חוזה הנתונים" in _texts(at) and "לא יכול להיות גדול מתקופת המנוי" in _texts(at)
 
 
 def test_break_demo_stops_the_flow_and_leaves_the_data_untouched(project):
     at = _page("gate_demo").run()
-    assert "passes the gate" in _texts(at)
+    assert "עוברים את השער" in _texts(at)
     assert at.selectbox[0].value == "unit_x100"
     at.button[0].click().run()
     text = _texts(at)
-    assert "stopped at: 3. Validation gate" in text and "UNIT CHANGE" in text
+    assert "נעצר בשלב: 3 - שער הבדיקה" in text and "UNIT CHANGE" in text
     metrics = {m.label: m.value for m in at.metric}
-    assert metrics == {"Model API calls": "0", "Model trained": "no", "Original data unchanged": "yes"}
+    assert metrics == {"קריאות API למודל": "0", "אומן מודל": "לא", "הנתונים המקוריים לא השתנו": "כן"}
     assert not (project / "artifacts" / "_broken" / "unit_x100_scientist" / "model.joblib").exists()
 
 
@@ -183,7 +200,7 @@ def test_free_flow_button_never_builds_the_paid_llm(project, monkeypatch):
     validated = {p: p.read_bytes() for p in (project / "artifacts" / "scientist").iterdir()}
     at = _page("flow").run()
     at.button[0].click().run()
-    assert not at.exception and "finished successfully" in _texts(at)
+    assert not at.exception and "הסתיים בהצלחה" in _texts(at)
     assert (project / "artifacts" / "_no_llm" / "scientist" / "model.joblib").exists()
     assert {p: p.read_bytes() for p in (project / "artifacts" / "scientist").iterdir()} == validated
 

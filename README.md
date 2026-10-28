@@ -18,7 +18,9 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 ```powershell
 .\.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py     # then open http://localhost:8501
 ```
-Six screens: Overview, Churn insights, Model performance, Predict churn, Flow runs & costs, Break-the-data demo.
+The app is in Hebrew (right to left). Six screens: Overview, Churn insights, Model performance, Predict churn,
+Flow runs & costs, Break-the-data demo. The reports it shows (EDA report, insights, model card, failure report)
+stay in English, as the pipeline writes them.
 The app reads the committed results and never calls the Claude API. Its two buttons are free and safe: a Flow
 run without AI (writes to `artifacts/_no_llm/`) and the break demo (works on a copy in `artifacts/_broken/`).
 

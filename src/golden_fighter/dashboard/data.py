@@ -3,6 +3,7 @@
 Nothing here computes a metric: numbers come from insight_facts.json, evaluation.json, run_summary.json and
 the saved model. The app never calls the Claude API. Its only actions are free and work on copies:
 the break demo (artifacts/_broken/) and a no-LLM Flow run (artifacts/_no_llm/).
+Labels and table headings are Hebrew (the app's language); the artifacts themselves stay in English.
 """
 import json
 import re
@@ -15,39 +16,43 @@ import yaml
 from golden_fighter import config
 from golden_fighter.contract.breakers import SCENARIOS
 from golden_fighter.contract.validator import ValidationResult, run_gate
+from golden_fighter.dashboard import hebrew
 from golden_fighter.errors import DataValidationError
 from golden_fighter.modeling.predict import RISK_BANDS, load_model, predict_churn
 from golden_fighter.tools.grounding import strip_source_tags
 
-# Plain-English names for the model inputs (the contract holds the technical descriptions).
+# Plain-language names for the model inputs (the contract holds the technical descriptions).
 FEATURE_LABELS = {
-    "near_location": "Lives or works near the club",
-    "partner": "Works for a partner company",
-    "promo_friends": "Joined through a friend's referral",
-    "phone": "Phone number on file",
-    "contract_period": "Contract length (months)",
-    "group_visits": "Attends group classes",
-    "age": "Age (years)",
-    "avg_additional_charges_total": "Average extra spending (cafe, services)",
-    "month_to_end_contract": "Months left on the contract",
-    "lifetime": "Months since joining",
-    "avg_class_frequency_total": "Average visits per week since joining",
+    "near_location": "גר או עובד ליד המועדון",
+    "partner": "עובד בחברה שותפה",
+    "promo_friends": "הצטרף דרך המלצה של חבר",
+    "phone": "מסר מספר טלפון",
+    "contract_period": "תקופת המנוי (חודשים)",
+    "group_visits": "משתתף בשיעורים קבוצתיים",
+    "age": "גיל (שנים)",
+    "avg_additional_charges_total": "הוצאה נוספת ממוצעת (בית קפה, שירותים)",
+    "month_to_end_contract": "חודשים שנותרו למנוי",
+    "lifetime": "חודשים מאז ההצטרפות",
+    "avg_class_frequency_total": "ממוצע ביקורים בשבוע מאז ההצטרפות",
 }
-MODEL_LABELS = {"baseline_majority": "Baseline (always guesses)", "logistic_regression": "Logistic regression",
-                "random_forest": "Random forest"}
-RUN_KINDS = {"Full runs (with AI agents)": "runs", "Free runs (no AI)": "_no_llm/runs", "Break demos": "_broken/runs"}
+MODEL_LABELS = {"baseline_majority": "מודל בסיס (ניחוש קבוע)", "logistic_regression": "רגרסיה לוגיסטית",
+                "random_forest": "יער אקראי (Random Forest)"}
+FULL_RUNS = "ריצות מלאות (עם סוכני AI)"
+RUN_KINDS = {FULL_RUNS: "runs", "ריצות חינמיות (ללא AI)": "_no_llm/runs", "הדגמות שבירה": "_broken/runs"}
 
 # Two example members for the prediction screen (values inside the contract's ranges).
 EXAMPLE_MEMBERS = {
-    "New member on a 1-month contract": {
+    "מתאמן חדש, מנוי לחודש אחד": {
         "near_location": 1, "partner": 0, "promo_friends": 0, "phone": 1, "contract_period": 1, "group_visits": 0,
         "age": 24, "avg_additional_charges_total": 60.0, "month_to_end_contract": 1, "lifetime": 0,
         "avg_class_frequency_total": 1.0},
-    "Loyal member on a 12-month contract": {
+    "מתאמן ותיק, מנוי ל-12 חודשים": {
         "near_location": 1, "partner": 1, "promo_friends": 1, "phone": 1, "contract_period": 12, "group_visits": 1,
         "age": 33, "avg_additional_charges_total": 220.0, "month_to_end_contract": 9, "lifetime": 14,
         "avg_class_frequency_total": 3.0},
 }
+
+FREE_FLOW_HINT = "הריצו את ה-Flow החינמי (במסך 'ריצות Flow ועלויות') כדי ליצור אותו."
 
 
 @dataclass
@@ -66,31 +71,33 @@ class MissingArtifact(FileNotFoundError):
     """An artifact the screen needs does not exist yet; the message says how to create it."""
 
 
+def _not_found(path: Path) -> str:
+    return f"הקובץ `{path.name}` לא נמצא בתיקייה `{path.parent.name}/`."
+
+
 def _read_json(path: Path, how_to_create: str) -> dict:
     if not path.exists():
-        raise MissingArtifact(f"{path.name} was not found in {path.parent.name}/. {how_to_create}")
+        raise MissingArtifact(f"{_not_found(path)} {how_to_create}")
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def facts(paths: Paths) -> dict:
-    return _read_json(paths.analyst_dir / "insight_facts.json",
-                      "Run the free Flow (screen 'Flow runs & costs') to create it.")
+    return _read_json(paths.analyst_dir / "insight_facts.json", FREE_FLOW_HINT)
 
 
 def evaluation(paths: Paths) -> dict:
     return _read_json(paths.scientist_dir / "evaluation.json",
-                      "Run the free Flow (screen 'Flow runs & costs') to train the model.")
+                      "הריצו את ה-Flow החינמי (במסך 'ריצות Flow ועלויות') כדי לאמן את המודל.")
 
 
 def contract(paths: Paths) -> dict:
-    return _read_json(paths.analyst_dir / "dataset_contract.json",
-                      "Run the free Flow (screen 'Flow runs & costs') to create it.")
+    return _read_json(paths.analyst_dir / "dataset_contract.json", FREE_FLOW_HINT)
 
 
 def document(path: Path) -> str:
     """A markdown artifact for display: agent-section markers and any source tags removed."""
     if not path.exists():
-        raise MissingArtifact(f"{path.name} was not found in {path.parent.name}/.")
+        raise MissingArtifact(_not_found(path))
     text = re.sub(r"<!-- agent-summary:(start|end) -->\n?", "", path.read_text(encoding="utf-8"))
     return strip_source_tags(text)
 
@@ -109,50 +116,59 @@ def agent_section(path: Path) -> str | None:
 
 # --- insights -------------------------------------------------------------------------------------------------
 
-def churn_by(facts_: dict, key: str) -> pd.DataFrame:
+def churn_by(facts_: dict, key: str, labels: dict[str, str] = hebrew.GROUPS) -> pd.DataFrame:
     """A churn-by-group table (group, members, churn rate in %) from insight_facts.json."""
     df = pd.DataFrame(facts_[key])
+    df["group"] = [labels.get(g, g) for g in df["group"]]
     df["churn_rate_pct"] = (df["churn_rate"] * 100).round(1)
     return df
 
 
 def churn_by_flags(facts_: dict) -> pd.DataFrame:
     rows = []
-    for item in facts_["churn_by_flag"].values():
-        rows += [{"factor": item["label"], "answer": "Yes", "churn_rate_pct": round(item["rate_if_yes"] * 100, 1)},
-                 {"factor": item["label"], "answer": "No", "churn_rate_pct": round(item["rate_if_no"] * 100, 1)}]
+    for column, item in facts_["churn_by_flag"].items():
+        factor = FEATURE_LABELS.get(column, item["label"])
+        rows += [{"factor": factor, "answer": "כן", "churn_rate_pct": round(item["rate_if_yes"] * 100, 1)},
+                 {"factor": factor, "answer": "לא", "churn_rate_pct": round(item["rate_if_no"] * 100, 1)}]
     return pd.DataFrame(rows)
 
 
 # --- model ----------------------------------------------------------------------------------------------------
 
+SELECTED, REFERENCE, NOT_SELECTED, LEAKAGE_ROLE = ("נבחר", "להשוואה בלבד", "לא נבחר",
+                                                   "ניסוי דליפה - לעולם לא בשימוש")
+
+
 def model_table(eval_: dict) -> pd.DataFrame:
     """One row per model plus the leakage experiment, with its role spelled out."""
     rows = []
     for name, result in eval_["results"].items():
-        role = ("Selected" if name == eval_["selected_model"]
-                else "Reference only" if name == "baseline_majority" else "Not selected")
+        role = (SELECTED if name == eval_["selected_model"]
+                else REFERENCE if name == "baseline_majority" else NOT_SELECTED)
         rows.append(_model_row(MODEL_LABELS.get(name, name), role, result))
-    rows.append(_model_row(f"{MODEL_LABELS.get(eval_['selected_model'])} + current-month visits",
-                           "Leakage experiment - never used", eval_["ablation"]))
+    rows.append(_model_row(f"{MODEL_LABELS.get(eval_['selected_model'])} + ביקורי החודש הנוכחי",
+                           LEAKAGE_ROLE, eval_["ablation"]))
     return pd.DataFrame(rows)
 
 
 def _model_row(label: str, role: str, result: dict) -> dict:
     test = result["test"]
-    return {"Model": label, "Role": role, "CV ROC-AUC (train)": result["cv"]["roc_auc"]["mean"],
-            "Test ROC-AUC": test["roc_auc"], "Test recall": test["recall"], "Test precision": test["precision"],
-            "Test F1": test["f1"]}
+    return {"מודל": label, "תפקיד": role, "CV ROC-AUC (אימון)": result["cv"]["roc_auc"]["mean"],
+            "ROC-AUC (מבחן)": test["roc_auc"], "Recall (מבחן)": test["recall"],
+            "Precision (מבחן)": test["precision"], "F1 (מבחן)": test["f1"]}
+
+
+SAID_STAY, SAID_LEAVE, STAYED, LEFT = "המודל: יישאר", "המודל: יעזוב", "נשאר", "עזב"
 
 
 def confusion_matrix(eval_: dict) -> pd.DataFrame:
     cm = eval_["results"][eval_["selected_model"]]["test"]["confusion_matrix"]
     return pd.DataFrame([
-        {"actual": "Stayed", "predicted": "Predicted to stay", "members": cm["tn"], "meaning": "Correctly left alone"},
-        {"actual": "Stayed", "predicted": "Predicted to leave", "members": cm["fp"],
-         "meaning": "False alarm: an offer that was not needed"},
-        {"actual": "Left", "predicted": "Predicted to stay", "members": cm["fn"], "meaning": "Missed churner"},
-        {"actual": "Left", "predicted": "Predicted to leave", "members": cm["tp"], "meaning": "Churner caught in time"},
+        {"actual": STAYED, "predicted": SAID_STAY, "members": cm["tn"], "meaning": "נשארו, והמודל צדק"},
+        {"actual": STAYED, "predicted": SAID_LEAVE, "members": cm["fp"],
+         "meaning": "אזעקת שווא: הצעת שימור שלא הייתה נחוצה"},
+        {"actual": LEFT, "predicted": SAID_STAY, "members": cm["fn"], "meaning": "עזבו, והמודל פספס אותם"},
+        {"actual": LEFT, "predicted": SAID_LEAVE, "members": cm["tp"], "meaning": "עזבו, והמודל זיהה אותם בזמן"},
     ])
 
 
@@ -164,10 +180,11 @@ def feature_importance(eval_: dict) -> pd.DataFrame:
 
 def fairness(eval_: dict, key: str) -> pd.DataFrame:
     df = pd.DataFrame(eval_["fairness"][key])
+    df["group"] = [hebrew.text(hebrew.GROUPS, g) for g in df["group"]]
     for col in ("actual_churn_rate", "flagged_rate", "recall", "precision"):
-        df[col] = [f"{v:.1%}" if pd.notna(v) else "- (no leavers)" for v in df[col]]
-    return df.rename(columns={"group": "Group", "members": "Test members", "actual_churn_rate": "Actual churn rate",
-                              "flagged_rate": "Flagged rate", "recall": "Recall", "precision": "Precision"})
+        df[col] = [f"{v:.1%}" if pd.notna(v) else "- (אין עוזבים)" for v in df[col]]
+    return df.rename(columns={"group": "קבוצה", "members": "מתאמנים במבחן", "actual_churn_rate": "שיעור עזיבה בפועל",
+                              "flagged_rate": "שיעור שסומנו", "recall": "Recall", "precision": "Precision"})
 
 
 def roc_points(paths: Paths) -> pd.DataFrame | None:
@@ -190,7 +207,7 @@ def roc_points(paths: Paths) -> pd.DataFrame | None:
 def model_bundle(paths: Paths) -> dict:
     path = paths.scientist_dir / "model.joblib"
     if not path.exists():
-        raise MissingArtifact("model.joblib was not found. Run the free Flow (screen 'Flow runs & costs').")
+        raise MissingArtifact(f"{_not_found(path)} {FREE_FLOW_HINT}")
     return load_model(path)
 
 
@@ -199,7 +216,8 @@ def input_spec(bundle: dict) -> list[dict]:
     spec = []
     for name in bundle["input_features"]:
         rule = bundle["input_contract"][name]
-        spec.append({"name": name, "label": FEATURE_LABELS.get(name, name), "unit": rule["unit"],
+        spec.append({"name": name, "label": FEATURE_LABELS.get(name, name),
+                     "unit": hebrew.text(hebrew.UNITS, rule["unit"]),
                      "allowed_values": rule["allowed_values"], "min": rule["min"], "max": rule["max"]})
     return spec
 
@@ -211,6 +229,10 @@ def predict_member(bundle: dict, member: dict) -> dict:
             "risk_band": row["risk_band"], "threshold": bundle["threshold"], "model": bundle["model_name"]}
 
 
+def issue_in_hebrew(message: str) -> str:
+    return hebrew.issue(message, FEATURE_LABELS)
+
+
 # --- gate, demo and runs --------------------------------------------------------------------------------------
 
 def gate_result(paths: Paths) -> ValidationResult:
@@ -219,14 +241,14 @@ def gate_result(paths: Paths) -> ValidationResult:
 
 
 def break_scenarios() -> dict[str, str]:
-    return {name: description for name, (description, _) in SCENARIOS.items()}
+    return {name: hebrew.SCENARIOS.get(name, description) for name, (description, _) in SCENARIOS.items()}
 
 
 def run_break_demo(scenario: str):
     """Break a COPY of Crew 1's artifacts and run the Flow on it (no AI, free). Returns the FlowState."""
     from golden_fighter.flow.main import demo_settings, run_flow
     if not (config.ANALYST_DIR / "clean_data.csv").exists():
-        raise MissingArtifact("clean_data.csv is needed to make a broken copy. Run the free Flow first.")
+        raise MissingArtifact("כדי ליצור עותק שבור צריך את `clean_data.csv`. הריצו קודם את ה-Flow החינמי.")
     return run_flow(demo_settings(scenario))
 
 
@@ -234,8 +256,8 @@ def run_free_flow():
     """The Flow with the deterministic pipelines instead of agents (free). Writes to artifacts/_no_llm/."""
     from golden_fighter.flow.main import no_llm_settings, run_flow
     if not config.RAW_DATA_PATH.exists():
-        raise MissingArtifact("The raw dataset data/raw/gym_churn.csv is missing. See data/raw/DATA_SOURCE.md "
-                              "for the download link.")
+        raise MissingArtifact("קובץ הנתונים הגולמי `data/raw/gym_churn.csv` חסר. קישור להורדה נמצא ב-"
+                              "`data/raw/DATA_SOURCE.md`.")
     return run_flow(no_llm_settings())
 
 
@@ -269,34 +291,41 @@ def run_summaries(paths: Paths) -> list[tuple[str, dict]]:
     return sorted(found, key=lambda item: item[1].get("started_at", ""), reverse=True)
 
 
+# Column names of the run history (screens refer to them by these constants).
+RUN, KIND, API_CALLS, TOOL_RUNS, TOKENS, COST = ("ריצה", "סוג", "קריאות API למודל", "הפעלות כלים של סוכנים",
+                                                 "טוקנים", "עלות משוערת (USD)")
+
+
 def run_history(paths: Paths) -> pd.DataFrame:
     rows = []
     for kind, s in run_summaries(paths):
         totals = s.get("totals", {})
-        rows.append({"Run": s["run_id"], "Kind": kind, "Started (UTC)": s.get("started_at", "")[:19].replace("T", " "),
-                     "Result": _status_label(s.get("status")), "Stopped at": s.get("failed_stage") or "-",
-                     "Model": s.get("model") or "none (free)",
-                     "Model API calls": totals.get("model_api_calls", 0),
-                     "Agent tool executions": totals.get("agent_tool_executions", 0),
-                     "Tokens": totals.get("total_tokens", 0), "Est. cost (USD)": totals.get("estimated_cost_usd") or 0.0,
-                     "Seconds": s.get("duration_seconds")})
+        rows.append({RUN: s["run_id"], KIND: kind, "התחלה (UTC)": s.get("started_at", "")[:19].replace("T", " "),
+                     "תוצאה": status_label(s.get("status")),
+                     "נעצר בשלב": hebrew.text(hebrew.STAGES, s.get("failed_stage") or "-"),
+                     "מודל שפה": s.get("model") or "ללא (חינם)",
+                     API_CALLS: totals.get("model_api_calls", 0),
+                     TOOL_RUNS: totals.get("agent_tool_executions", 0),
+                     TOKENS: totals.get("total_tokens", 0), COST: totals.get("estimated_cost_usd") or 0.0,
+                     "שניות": s.get("duration_seconds")})
     return pd.DataFrame(rows)
 
 
-def _status_label(status: str | None) -> str:
-    return {"succeeded": "Succeeded", "validation_failed": "Stopped by the gate",
-            "error": "Stopped by an error"}.get(status or "", status or "unknown")
+def status_label(status: str | None) -> str:
+    return {"succeeded": "הצליחה", "validation_failed": "נעצרה בשער הבדיקה",
+            "error": "נעצרה בגלל שגיאה"}.get(status or "", status or "לא ידוע")
 
 
 def agents_overview() -> pd.DataFrame:
-    """The six agents, their goals and the tools they may use, from the crews' YAML."""
+    """The six agents, their goals and the tools they may use, from the crews' YAML (goals shown in Hebrew)."""
     rows = []
     base = Path(__file__).resolve().parents[1] / "crews"
-    for crew, folder in (("Crew 1 - Data Analyst", "analyst_crew"), ("Crew 2 - Data Scientist", "scientist_crew")):
+    for folder in ("analyst_crew", "scientist_crew"):
         agents = yaml.safe_load((base / folder / "config" / "agents.yaml").read_text(encoding="utf-8"))
         for cfg in agents.values():
-            rows.append({"Crew": crew, "Agent": cfg["role"], "Goal": " ".join(cfg["goal"].split()),
-                         "Tools": ", ".join(cfg["tools"])})
+            name, goal = hebrew.AGENTS.get(cfg["role"], (cfg["role"], " ".join(cfg["goal"].split())))
+            rows.append({"צוות": hebrew.CREWS[folder], "סוכן": name, "שם ב-CrewAI": cfg["role"],
+                         "מטרה": goal, "כלים": ", ".join(cfg["tools"])})
     return pd.DataFrame(rows)
 
 

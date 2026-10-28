@@ -1,4 +1,6 @@
-"""Shared Streamlit pieces for the app: cached loaders, error boxes and the charts (Altair, one accent hue)."""
+"""Shared Streamlit pieces for the app: right-to-left layout, cached loaders, error boxes, tables and the charts
+(Altair, one accent hue)."""
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -6,11 +8,32 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-from golden_fighter.dashboard import data
+from golden_fighter.dashboard import data, hebrew
 
 ACCENT = "#B8860B"      # Golden Fighter gold: the one data hue
 MUTED = "#9AA0A6"       # neutral for the comparison bar ("No", "stayed")
-NO_AI_NOTE = "This app never calls the Claude API. Every number on screen comes from files written by tested code."
+NO_AI_NOTE = "האפליקציה אף פעם לא פונה ל-Claude API. כל מספר שמוצג כאן מגיע מקבצים שנכתבו על ידי קוד נבדק."
+
+# Streamlit has no right-to-left switch, so the app sets it with CSS on the page content and the sidebar content
+# (not on the whole app: that flips Streamlit's own layout and the page slides under the sidebar). Charts and
+# the embedded EDA report keep left-to-right (their axes and numbers read that way); code, file names and English
+# documents (containers with a key starting with "ltr") stay left-to-right so their characters keep their order.
+RTL_CSS = """
+<style>
+[data-testid="stMain"], [data-testid="stSidebarContent"] { direction: rtl; }
+[data-testid="stMarkdownContainer"], [data-testid="stCaptionContainer"], [data-testid="stHeading"],
+[data-testid="stMetricLabel"], [data-testid="stWidgetLabel"], [data-testid="stExpander"] summary,
+[data-testid="stTable"] th, [data-testid="stTable"] td { text-align: right; }
+code, pre { direction: ltr; unicode-bidi: isolate; }
+[data-testid="stVegaLiteChart"], [data-testid="stIFrame"],
+[data-testid="stNumberInputContainer"] { direction: ltr; }
+[class*="st-key-ltr"], [class*="st-key-ltr"] [data-testid="stMarkdownContainer"] { direction: ltr; text-align: left; }
+</style>
+"""
+
+
+def apply_rtl() -> None:
+    st.html(RTL_CSS)
 
 
 def paths() -> data.Paths:
@@ -40,9 +63,9 @@ def guarded(render: Callable[[], None]) -> None:
     try:
         render()
     except data.MissingArtifact as err:
-        st.warning(f"**Some results are not available yet.** {err}", icon=":material/info:")
+        st.warning(f"**חלק מהתוצאות עדיין לא זמינות.** {err}", icon=":material/info:")
     except data.DataValidationError as err:
-        st.error("**The data did not pass the checks:**\n\n" + "\n".join(f"- {i}" for i in err.issues),
+        st.error("**הנתונים לא עברו את הבדיקות:**\n\n" + "\n".join(f"- `{i}`" for i in err.issues),
                  icon=":material/block:")
 
 
@@ -55,44 +78,73 @@ def pct(value: float | None, digits: int = 1) -> str:
     return "-" if value is None else f"{value * 100:.{digits}f}%"
 
 
+def english_document(key: str, markdown: str) -> None:
+    """An English artifact (report, model card) shown as written, left to right."""
+    with st.container(key=f"ltr_{key}"):
+        st.markdown(markdown)
+
+
+def table(df: pd.DataFrame, formats: dict[str, str] | None = None) -> None:
+    """A static table (it follows the right-to-left layout, unlike the interactive grid). formats: column -> format."""
+    shown = df.copy()
+    for column, fmt in (formats or {}).items():
+        shown[column] = [fmt.format(v) if pd.notna(v) else "-" for v in shown[column]]
+    st.table(shown, hide_index=True)
+
+
 # --- charts ------------------------------------------------------------------------------------------------
+# Charts are drawn left to right, which scrambles Hebrew text that contains English, digits or brackets.
+# Wrapping it in right-to-left embedding marks (RLE ... PDF) keeps it in reading order.
+
+def _r(text: str) -> str:
+    return f"\u202b{text}\u202c" if text and re.search("[\u0590-\u05ff]", text) else text
+
+
+def _rtl_columns(df: pd.DataFrame, *columns: str) -> pd.DataFrame:
+    return df.assign(**{c: [_r(str(v)) for v in df[c]] for c in columns})
+
+
 
 def bar_by_group(df: pd.DataFrame, group_title: str, order: list[str] | None = None) -> alt.Chart:
+    df = _rtl_columns(df, "group")
     base = alt.Chart(df).encode(
-        x=alt.X("group:N", title=group_title, sort=order or list(df["group"]), axis=alt.Axis(labelAngle=0)),
-        y=alt.Y("churn_rate_pct:Q", title="Churn rate (%)", scale=alt.Scale(domain=[0, 100])),
-        tooltip=[alt.Tooltip("group:N", title=group_title), alt.Tooltip("members:Q", title="Members", format=","),
-                 alt.Tooltip("churn_rate_pct:Q", title="Churn rate (%)")])
+        x=alt.X("group:N", title=_r(group_title), sort=order or list(df["group"]), axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("churn_rate_pct:Q", title=_r("שיעור עזיבה (%)"), scale=alt.Scale(domain=[0, 100])),
+        tooltip=[alt.Tooltip("group:N", title=_r(group_title)),
+                 alt.Tooltip("members:Q", title=_r("מתאמנים"), format=","),
+                 alt.Tooltip("churn_rate_pct:Q", title=_r("שיעור עזיבה (%)"))])
     bars = base.mark_bar(color=ACCENT, cornerRadiusTopLeft=4, cornerRadiusTopRight=4, size=42)
     labels = base.mark_text(dy=-8).encode(text=alt.Text("churn_rate_pct:Q", format=".1f"))
     return (bars + labels).properties(height=280)
 
 
 def bar_yes_no(df: pd.DataFrame) -> alt.Chart:
+    df, yes_no = _rtl_columns(df, "factor", "answer"), [_r("כן"), _r("לא")]
     base = alt.Chart(df).encode(
         y=alt.Y("factor:N", title=None, sort=None, axis=alt.Axis(labelLimit=260)),
-        yOffset=alt.YOffset("answer:N", sort=["Yes", "No"]),
-        x=alt.X("churn_rate_pct:Q", title="Churn rate (%)", scale=alt.Scale(domain=[0, 60])),
-        tooltip=[alt.Tooltip("factor:N", title="Factor"), alt.Tooltip("answer:N", title="Answer"),
-                 alt.Tooltip("churn_rate_pct:Q", title="Churn rate (%)")])
+        yOffset=alt.YOffset("answer:N", sort=yes_no),
+        x=alt.X("churn_rate_pct:Q", title=_r("שיעור עזיבה (%)"), scale=alt.Scale(domain=[0, 60])),
+        tooltip=[alt.Tooltip("factor:N", title=_r("גורם")), alt.Tooltip("answer:N", title=_r("תשובה")),
+                 alt.Tooltip("churn_rate_pct:Q", title=_r("שיעור עזיבה (%)"))])
     bars = base.mark_bar(cornerRadiusTopRight=4, cornerRadiusBottomRight=4).encode(
-        color=alt.Color("answer:N", title="Answer", sort=["Yes", "No"],
-                        scale=alt.Scale(domain=["Yes", "No"], range=[ACCENT, MUTED])))
+        color=alt.Color("answer:N", title=_r("תשובה"), sort=yes_no,
+                        scale=alt.Scale(domain=yes_no, range=[ACCENT, MUTED])))
     labels = base.mark_text(align="left", dx=4).encode(text=alt.Text("churn_rate_pct:Q", format=".1f"))
     return (bars + labels).properties(height=360)
 
 
 def confusion_heatmap(df: pd.DataFrame) -> alt.Chart:
     """2x2 grid: correct answers in gold, mistakes in grey (size is in the number, not the colour)."""
-    df = df.assign(said=df["predicted"].str.replace("Predicted to ", "Said: "),
-                   outcome=["Correct", "Mistake", "Mistake", "Correct"])
+    right, wrong = _r("נכון"), _r("טעות")
+    df = _rtl_columns(df.assign(outcome=[right, wrong, wrong, right]), "predicted", "actual", "meaning")
     base = alt.Chart(df).encode(
-        x=alt.X("said:N", title="What the model said", sort=["Said: stay", "Said: leave"],
+        x=alt.X("predicted:N", title=_r("מה המודל אמר"), sort=[_r(data.SAID_STAY), _r(data.SAID_LEAVE)],
                 axis=alt.Axis(labelAngle=0, orient="top", labelFontSize=13)),
-        y=alt.Y("actual:N", title="What really happened", sort=["Stayed", "Left"], axis=alt.Axis(labelFontSize=13)),
-        tooltip=[alt.Tooltip("meaning:N", title="Meaning"), alt.Tooltip("members:Q", title="Members")])
+        y=alt.Y("actual:N", title=_r("מה קרה בפועל"), sort=[_r(data.STAYED), _r(data.LEFT)],
+                axis=alt.Axis(labelFontSize=13)),
+        tooltip=[alt.Tooltip("meaning:N", title=_r("משמעות")), alt.Tooltip("members:Q", title=_r("מתאמנים"))])
     cells = base.mark_rect(cornerRadius=6, stroke="white", strokeWidth=4).encode(
-        color=alt.Color("outcome:N", title=None, scale=alt.Scale(domain=["Correct", "Mistake"],
+        color=alt.Color("outcome:N", title=None, scale=alt.Scale(domain=[right, wrong],
                                                                  range=["#F2D27A", "#E3E5E8"]),
                         legend=alt.Legend(orient="bottom")))
     text = base.mark_text(fontSize=26, fontWeight="bold", color="#202124").encode(text="members:Q")
@@ -100,11 +152,13 @@ def confusion_heatmap(df: pd.DataFrame) -> alt.Chart:
 
 
 def importance_bars(df: pd.DataFrame) -> alt.Chart:
+    df = _rtl_columns(df, "label")
     base = alt.Chart(df).encode(
         y=alt.Y("label:N", title=None, sort="-x", axis=alt.Axis(labelLimit=320)),
-        x=alt.X("auc_drop_mean:Q", title="Drop in ROC-AUC when this input is shuffled"),
-        tooltip=[alt.Tooltip("label:N", title="Input"), alt.Tooltip("auc_drop_mean:Q", title="ROC-AUC drop"),
-                 alt.Tooltip("auc_drop_std:Q", title="Spread (std)")])
+        x=alt.X("auc_drop_mean:Q", title=_r("הירידה ב-ROC-AUC כשמערבבים את הנתון הזה")),
+        tooltip=[alt.Tooltip("label:N", title=_r("נתון")),
+                 alt.Tooltip("auc_drop_mean:Q", title=_r("ירידה ב-ROC-AUC")),
+                 alt.Tooltip("auc_drop_std:Q", title=_r("פיזור (סטיית תקן)"))])
     bars = base.mark_bar(color=ACCENT, cornerRadiusTopRight=4, cornerRadiusBottomRight=4)
     labels = base.mark_text(align="left", dx=4).encode(text=alt.Text("auc_drop_mean:Q", format=".3f"))
     return (bars + labels).properties(height=320)
@@ -112,38 +166,36 @@ def importance_bars(df: pd.DataFrame) -> alt.Chart:
 
 def roc_chart(df: pd.DataFrame, auc: float) -> alt.Chart:
     curve = alt.Chart(df).mark_line(color=ACCENT, strokeWidth=2).encode(
-        x=alt.X("false_alarm_rate:Q", title="False alarms (share of loyal members flagged)"),
-        y=alt.Y("churners_caught:Q", title="Churners caught (recall)"),
-        tooltip=[alt.Tooltip("false_alarm_rate:Q", format=".2f", title="False alarm rate"),
-                 alt.Tooltip("churners_caught:Q", format=".2f", title="Churners caught")])
+        x=alt.X("false_alarm_rate:Q", title=_r("אזעקות שווא (חלק מהנשארים שסומנו)")),
+        y=alt.Y("churners_caught:Q", title=_r("עוזבים שזוהו (Recall)")),
+        tooltip=[alt.Tooltip("false_alarm_rate:Q", format=".2f", title=_r("שיעור אזעקות שווא")),
+                 alt.Tooltip("churners_caught:Q", format=".2f", title=_r("עוזבים שזוהו"))])
     chance = alt.Chart(pd.DataFrame({"x": [0, 1], "y": [0, 1]})).mark_line(color=MUTED, strokeDash=[4, 4]).encode(
         x="x:Q", y="y:Q")
-    return (chance + curve).properties(height=320, title=f"ROC curve of the selected model (area = {auc:.3f})")
+    return (chance + curve).properties(height=320, title=_r(f"עקומת ROC של המודל שנבחר (שטח = {auc:.3f})"))
 
 
 def cost_bars(df: pd.DataFrame) -> alt.Chart:
-    """Estimated API cost per full run. Column names with dots or brackets break Vega-Lite fields, so rename."""
-    plot = df.rename(columns={"Est. cost (USD)": "cost", "Model API calls": "calls"})[
-        ["Run", "Model", "calls", "Tokens", "cost"]]
+    """Estimated API cost per full run. Vega-Lite field names must be plain (no dots or brackets), so rename."""
+    plot = df.rename(columns={data.RUN: "run", "מודל שפה": "model", data.API_CALLS: "calls", data.TOKENS: "tokens",
+                              data.COST: "cost"})[["run", "model", "calls", "tokens", "cost"]]
     base = alt.Chart(plot).encode(
-        x=alt.X("Run:N", title="Full run", axis=alt.Axis(labelAngle=0)),
-        y=alt.Y("cost:Q", title="Estimated cost (USD)", axis=alt.Axis(format="$.3f")),
-        tooltip=["Run", "Model", alt.Tooltip("calls:Q", title="Model API calls"), "Tokens",
-                 alt.Tooltip("cost:Q", title="Estimated cost (USD)", format="$.4f")])
+        x=alt.X("run:N", title=_r("ריצה מלאה"), axis=alt.Axis(labelAngle=0)),
+        y=alt.Y("cost:Q", title=_r("עלות משוערת (USD)"), axis=alt.Axis(format="$.3f")),
+        tooltip=[alt.Tooltip("run:N", title=_r("ריצה")), alt.Tooltip("model:N", title=_r("מודל שפה")),
+                 alt.Tooltip("calls:Q", title=_r("קריאות API למודל")),
+                 alt.Tooltip("tokens:Q", title=_r("טוקנים"), format=","),
+                 alt.Tooltip("cost:Q", title=_r("עלות משוערת (USD)"), format="$.4f")])
     return (base.mark_bar(color=ACCENT, cornerRadiusTopLeft=4, cornerRadiusTopRight=4, size=42)
             + base.mark_text(dy=-8).encode(text=alt.Text("cost:Q", format="$.4f"))).properties(height=240)
 
 
-STAGE_LABELS = {"preflight": "1. Preflight checks", "analyst": "2. Crew 1 - Data Analyst",
-                "validation_gate": "3. Validation gate", "scientist": "4. Crew 2 - Data Scientist"}
-STATUS_ICONS = {"ok": "✅ passed", "skipped": "⏭️ not run", "validation_failed": "⛔ stopped by data checks",
-                "error": "❌ error"}
-
+# --- Flow results ------------------------------------------------------------------------------------------
 
 def stages_table(summary: dict) -> pd.DataFrame:
-    return pd.DataFrame([{"Step": STAGE_LABELS.get(s["name"], s["name"]),
-                          "Result": STATUS_ICONS.get(s["status"], s["status"]),
-                          "Seconds": s["seconds"], "Detail": (s.get("detail") or "").splitlines()[0][:160]
+    return pd.DataFrame([{"שלב": hebrew.text(hebrew.STAGES, s["name"]),
+                          "תוצאה": hebrew.text(hebrew.STAGE_STATUS, s["status"]),
+                          "שניות": s["seconds"], "פירוט": (s.get("detail") or "").splitlines()[0][:160]
                           if s.get("detail") else ""} for s in summary["stages"]])
 
 
@@ -151,16 +203,17 @@ def show_flow_result(summary: dict) -> None:
     """Outcome of one Flow run in plain words, then the details."""
     status = summary["status"]
     if status == "succeeded":
-        st.success(f"**The Flow finished successfully** (run `{summary['run_id']}`).", icon=":material/check_circle:")
+        st.success(f"**ה-Flow הסתיים בהצלחה** (ריצה `{summary['run_id']}`).", icon=":material/check_circle:")
     elif status == "validation_failed":
-        st.error(f"**The Flow stopped at: {STAGE_LABELS.get(summary['failed_stage'], summary['failed_stage'])}.** "
-                 "The data broke the contract, so the Data Scientist crew never started and no model was trained.",
+        st.error(f"**ה-Flow נעצר בשלב: {hebrew.text(hebrew.STAGES, summary['failed_stage'])}.** "
+                 "הנתונים הפרו את החוזה, ולכן צוות מדעני הנתונים לא התחיל ואף מודל לא אומן.",
                  icon=":material/block:")
     else:
-        st.error(f"**The Flow stopped with an error at {summary['failed_stage']}:** {summary['failure_reason']}",
-                 icon=":material/error:")
-    st.dataframe(stages_table(summary), hide_index=True, width="stretch")
+        st.error(f"**ה-Flow נעצר בגלל שגיאה בשלב {hebrew.text(hebrew.STAGES, summary['failed_stage'])}:** "
+                 f"`{summary['failure_reason']}`", icon=":material/error:")
+    table(stages_table(summary), {"שניות": "{:.1f}"})
     if summary.get("validation_issues"):
-        st.markdown("**What the gate found** (each line names the column and the rule it breaks):")
+        st.markdown("**מה השער מצא** (כל שורה מציינת את העמודה ואת הכלל שהיא מפרה; ההודעות הטכניות נשארות "
+                    "באנגלית, כמו ביומן ובדוח הכשל):")
         for issue in summary["validation_issues"]:
             st.markdown(f"- `{issue}`")

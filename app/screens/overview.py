@@ -3,69 +3,69 @@ import streamlit as st
 
 from golden_fighter.dashboard import data, ui
 
-ui.header("Golden Fighter AI - Retention Intelligence",
-          "About one gym member in four leaves. This project predicts **who is likely to leave at the start of a "
-          "month**, so the retention team can offer help in time, and explains why.")
+ui.header("Golden Fighter AI: חיזוי נטישת מתאמנים",
+          "בערך מתאמן אחד מכל ארבעה עוזב את המועדון. המערכת מזהה **מי צפוי לעזוב, כבר בתחילת החודש**, כדי שצוות "
+          "השימור יוכל להציע עזרה בזמן, ומסבירה למה.")
 
 
 def render():
     facts, evaluation = ui.load("facts"), ui.load("evaluation")
     test = evaluation["results"][evaluation["selected_model"]]["test"]
     cols = st.columns(5)
-    cols[0].metric("Members analysed", f"{facts['members']:,}")
-    cols[1].metric("Left the club", ui.pct(facts["churn_rate"]), help="Share of members who churned.")
-    cols[2].metric("Leavers caught", ui.pct(test["recall"]),
-                   help="Recall: share of real leavers the model flags, on members it never saw in training.")
-    cols[3].metric("Correct warnings", ui.pct(test["precision"]),
-                   help="Precision: share of flagged members who really leave (test set).")
+    cols[0].metric("מתאמנים שנותחו", f"{facts['members']:,}")
+    cols[1].metric("עזבו את המועדון", ui.pct(facts["churn_rate"]), help="שיעור המתאמנים שעזבו (churn).")
+    cols[2].metric("עוזבים שזוהו", ui.pct(test["recall"]),
+                   help="Recall: איזה חלק מהעוזבים האמיתיים המודל מסמן, על מתאמנים שהוא לא ראה באימון.")
+    cols[3].metric("אזהרות נכונות", ui.pct(test["precision"]),
+                   help="Precision: איזה חלק מהמתאמנים שסומנו באמת עוזבים (נתוני המבחן).")
     cols[4].metric("ROC-AUC", f"{test['roc_auc']:.3f}",
-                   help="1.0 = perfect ranking of leavers above stayers; 0.5 = a coin toss.")
+                   help="1.0 = דירוג מושלם של העוזבים מעל הנשארים; 0.5 = הטלת מטבע.")
 
     left, right = st.columns([3, 2], gap="large")
     with left:
-        st.subheader("What the AI agents found")
+        st.subheader("מה סוכני ה-AI מצאו")
         summary = data.agent_section(ui.paths().analyst_dir / "insights.md")
         if summary:
-            st.markdown(summary)
-            st.caption("Written by the EDA & Insights agent. Before saving, code checked that every number in it "
-                       "appears in the computed facts.")
+            st.caption("הסיכום נכתב באנגלית על ידי סוכן ה-EDA והתובנות, ומוצג כפי שנכתב. לפני השמירה, הקוד בדק "
+                       "שכל מספר בו מופיע בעובדות שחושבו.")
+            ui.english_document("agent_summary", summary)
         else:
-            st.info("No agent-written summary yet (the free run writes reports without AI text).")
+            st.info("עדיין אין סיכום שסוכן כתב (הריצה החינמית כותבת דוחות בלי טקסט של AI).")
     with right:
-        st.subheader("Latest full run")
+        st.subheader("הריצה המלאה האחרונה")
         history = data.run_history(ui.paths())
-        full = history[history["Kind"] == "Full runs (with AI agents)"] if not history.empty else history
+        full = history[history[data.KIND] == data.FULL_RUNS] if not history.empty else history
         if full.empty:
-            st.info("No full run with the AI agents is recorded yet.")
+            st.info("עדיין לא נרשמה ריצה מלאה עם סוכני ה-AI.")
         else:
             run = full.iloc[0]
-            st.markdown(f"**{run['Result']}** - {run['Started (UTC)']} UTC  \n"
-                        f"Model: `{run['Model']}`  \n"
-                        f"{run['Model API calls']} model API calls, {run['Agent tool executions']} agent tool "
-                        f"executions, {run['Tokens']:,} tokens  \n"
-                        f"Estimated cost: **${run['Est. cost (USD)']:.4f}**")
-        st.subheader("Design rule")
-        st.markdown("- **Numbers come from tested Python code.** AI agents run that code through tools and "
-                    "explain the results.\n"
-                    "- **The validation gate is plain Python.** No AI can talk its way past it.\n"
-                    "- **Crew 2 only sees Crew 1's published files and the data contract**, never the raw data.")
+            st.markdown(f"**{run['תוצאה']}** - {run['התחלה (UTC)']} UTC  \n"
+                        f"מודל שפה: `{run['מודל שפה']}`  \n"
+                        f"{run[data.API_CALLS]} קריאות API למודל, {run[data.TOOL_RUNS]} הפעלות כלים של סוכנים, "
+                        f"{run[data.TOKENS]:,} טוקנים  \n"
+                        f"עלות משוערת: **${run[data.COST]:.4f}**")
+        st.subheader("עיקרון התכנון")
+        st.markdown("- **המספרים מגיעים מקוד Python נבדק.** סוכני ה-AI מפעילים את הקוד הזה דרך כלים ומסבירים "
+                    "את התוצאות.\n"
+                    "- **שער הבדיקה הוא Python רגיל.** שום AI לא יכול לשכנע אותו לעבור.\n"
+                    "- **צוות 2 רואה רק את הקבצים שצוות 1 פרסם ואת חוזה הנתונים**, אף פעם לא את הנתונים הגולמיים.")
 
-    st.subheader("How the system works")
+    st.subheader("איך המערכת עובדת")
     st.graphviz_chart("""
 digraph {
-  rankdir=LR; bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fillcolor="#FFF8E1", color="#B8860B", fontname="Helvetica",
+  rankdir=RL; bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#FFF8E1", color="#B8860B", fontname="Arial",
         fontsize=16, margin="0.25,0.12"];
-  edge [color="#666666", fontname="Helvetica", fontsize=14];
-  raw [label="Public gym dataset\\n(4,000 members)"];
-  c1 [label="Crew 1: Data Analyst\\n3 AI agents\\nclean, explore, write contract"];
-  gate [label="Validation gate\\nplain Python, 88 checks", shape=diamond, fillcolor="#FFFFFF"];
-  c2 [label="Crew 2: Data Scientist\\n3 AI agents\\nfeatures, models, model card"];
-  out [label="Model + reports\\nrun_summary.json"];
-  fail [label="STOP\\nfailure_report.md\\nno model trained", fillcolor="#FDECEA", color="#C62828"];
-  raw -> c1 -> gate; gate -> c2 [label="passed"]; c2 -> out; gate -> fail [label="failed"];
+  edge [color="#666666", fontname="Arial", fontsize=14];
+  raw [label="נתוני חדר כושר ציבוריים\\n(4,000 מתאמנים)"];
+  c1 [label="צוות 1: אנליסט נתונים\\n3 סוכני AI\\nניקוי, חקירה, כתיבת חוזה"];
+  gate [label="שער הבדיקה\\nPython רגיל, 88 בדיקות", shape=diamond, fillcolor="#FFFFFF"];
+  c2 [label="צוות 2: מדען נתונים\\n3 סוכני AI\\nפיצ'רים, מודלים, כרטיס מודל"];
+  out [label="מודל + דוחות\\nrun_summary.json"];
+  fail [label="עצירה\\nfailure_report.md\\nאף מודל לא אומן", fillcolor="#FDECEA", color="#C62828"];
+  raw -> c1 -> gate; gate -> c2 [label="עבר"]; c2 -> out; gate -> fail [label="נכשל"];
 }""", width="stretch")
-    st.caption("Try it: the **Break-the-data demo** changes a copy of the data and shows the gate stopping the Flow.")
+    st.caption("נסו בעצמכם: **הדגמת שבירת נתונים** משנה עותק של הנתונים ומראה איך השער עוצר את ה-Flow.")
 
 
 ui.guarded(render)

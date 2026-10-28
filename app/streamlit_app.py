@@ -1,4 +1,4 @@
-"""Golden Fighter AI - Retention Intelligence dashboard.
+"""Golden Fighter AI - Retention Intelligence dashboard (Hebrew, right to left).
 
     .\\.venv\\Scripts\\python.exe -m streamlit run app/streamlit_app.py
 
@@ -9,25 +9,26 @@ from pathlib import Path
 
 import streamlit as st
 
-from golden_fighter.dashboard.ui import NO_AI_NOTE
+from golden_fighter.dashboard.ui import NO_AI_NOTE, apply_rtl
 
-st.set_page_config(page_title="Golden Fighter AI - Retention Intelligence", page_icon=":material/fitness_center:",
+st.set_page_config(page_title="Golden Fighter AI - חיזוי נטישת מתאמנים", page_icon=":material/fitness_center:",
                    layout="wide")
+apply_rtl()
 
 SCREENS = Path(__file__).parent / "screens"  # not "pages/": that name makes Streamlit add its own menu
 navigation = st.navigation({
-    "Results": [
-        st.Page(SCREENS / "overview.py", title="Overview", icon=":material/home:", default=True),
-        st.Page(SCREENS / "insights.py", title="Churn insights", icon=":material/insights:"),
-        st.Page(SCREENS / "model.py", title="Model performance", icon=":material/monitoring:"),
-        st.Page(SCREENS / "predict.py", title="Predict churn", icon=":material/person_search:"),
+    "תוצאות": [
+        st.Page(SCREENS / "overview.py", title="סקירה כללית", icon=":material/home:", default=True),
+        st.Page(SCREENS / "insights.py", title="תובנות על עזיבה", icon=":material/insights:"),
+        st.Page(SCREENS / "model.py", title="ביצועי המודל", icon=":material/monitoring:"),
+        st.Page(SCREENS / "predict.py", title="חיזוי עזיבה", icon=":material/person_search:"),
     ],
-    "How it works": [
-        st.Page(SCREENS / "flow.py", title="Flow runs & costs", icon=":material/account_tree:"),
-        st.Page(SCREENS / "gate_demo.py", title="Break-the-data demo", icon=":material/gpp_bad:"),
+    "איך זה עובד": [
+        st.Page(SCREENS / "flow.py", title="ריצות Flow ועלויות", icon=":material/account_tree:"),
+        st.Page(SCREENS / "gate_demo.py", title="הדגמת שבירת נתונים", icon=":material/gpp_bad:"),
     ],
 })
 with st.sidebar:
-    st.caption(f"**Offline mode.** {NO_AI_NOTE}")
-    st.caption("Public Kaggle data (gym members, anonymised). No private or CRM data.")
+    st.caption(f"**מצב לא מקוון.** {NO_AI_NOTE}")
+    st.caption("נתונים ציבוריים מ-Kaggle (מתאמני חדר כושר, אנונימיים). בלי נתונים פרטיים ובלי CRM.")
 navigation.run()
