@@ -4,6 +4,7 @@ All screens run against a throwaway copy of the project (config is pointed at tm
 touch the real artifacts, and no test makes an API call.
 """
 import json
+import re
 import shutil
 from pathlib import Path
 
@@ -72,14 +73,14 @@ def test_example_members_are_valid_and_ranked_sensibly(paths):
 
 
 def test_prediction_refuses_values_that_break_the_contract(paths):
-    member = dict(data.EXAMPLE_MEMBERS["מתאמן חדש, מנוי לחודש אחד"], month_to_end_contract=9)
+    member = dict(data.EXAMPLE_MEMBERS["מתאמן חדש במנוי חודשי"], month_to_end_contract=9)
     with pytest.raises(DataValidationError, match="cannot exceed"):
         data.predict_member(data.model_bundle(paths), member)
 
 
 def test_prediction_problems_are_shown_in_hebrew_and_unknown_ones_stay_readable():
     assert data.issue_in_hebrew("'month_to_end_contract' cannot exceed 'contract_period'") == \
-        "מספר החודשים שנותרו למנוי לא יכול להיות גדול מתקופת המנוי."
+        "מספר החודשים שנותרו עד סוף המנוי לא יכול להיות גדול מאורך המנוי."
     assert data.issue_in_hebrew("'age' above the contract maximum 100 years") == \
         "גיל (שנים): גבוה מהמקסימום שבחוזה (100 שנים)."
     assert data.issue_in_hebrew("something new") == "something new"  # never hidden
@@ -91,7 +92,7 @@ def test_every_agent_scenario_and_stage_has_a_hebrew_text():
 
     assert set(data.agents_overview()["שם ב-CrewAI"]) == set(hebrew.AGENTS)
     assert set(SCENARIOS) == set(hebrew.SCENARIOS)
-    assert all(text in hebrew.SCENARIOS.values() for text in data.break_scenarios().values())
+    assert data.break_scenarios() == hebrew.SCENARIOS
 
 
 def test_documents_are_shown_without_markers_or_source_tags(tmp_path):
@@ -152,7 +153,8 @@ def test_every_screen_renders_without_errors(project, page):
 def test_main_app_opens_on_the_overview(project):
     at = AppTest.from_file(str(APP / "streamlit_app.py"), default_timeout=180).run()
     assert not at.exception and at.title[0].value == "Golden Fighter AI: חיזוי נטישת מתאמנים"
-    assert "אף פעם לא פונה ל-Claude API" in _texts(at) + "".join(c.value for c in at.sidebar.caption)
+    assert "אף פעם לא פונה ל-Claude API" in _texts(at)  # the footer under every screen
+    assert "direction: rtl" in "".join(str(h.proto) for h in at.get("html"))  # right-to-left stylesheet
 
 
 def test_screens_explain_missing_results_instead_of_crashing(tmp_path, monkeypatch):
@@ -166,16 +168,16 @@ def test_screens_explain_missing_results_instead_of_crashing(tmp_path, monkeypat
 def test_overview_shows_the_agent_summary_and_headline_metrics(project):
     at = _page("overview").run()
     labels = [m.label for m in at.metric]
-    assert "עוזבים שזוהו" in labels and "ROC-AUC" in labels
+    assert "עוזבים שזוהו" in labels and "איכות הדירוג (ROC-AUC)" in labels
 
 
 def test_prediction_screen_scores_and_refuses_invalid_input(project):
     at = _page("predict").run()
     assert at.metric[0].label == "הסיכוי לעזוב החודש"
-    months_left = next(n for n in at.number_input if n.label == "חודשים שנותרו למנוי")
+    months_left = next(n for n in at.number_input if n.label == "חודשים עד סוף המנוי")
     months_left.set_value(9)
     at.button[0].click().run()  # the form's submit button
-    assert "מפרים את חוזה הנתונים" in _texts(at) and "לא יכול להיות גדול מתקופת המנוי" in _texts(at)
+    assert "מפרים את חוזה הנתונים" in _texts(at) and "לא יכול להיות גדול מאורך המנוי" in _texts(at)
 
 
 def test_break_demo_stops_the_flow_and_leaves_the_data_untouched(project):
@@ -184,9 +186,10 @@ def test_break_demo_stops_the_flow_and_leaves_the_data_untouched(project):
     assert at.selectbox[0].value == "unit_x100"
     at.button[0].click().run()
     text = _texts(at)
-    assert "נעצר בשלב: 3 - שער הבדיקה" in text and "UNIT CHANGE" in text
+    assert "נעצר בשלב: 3 - שער הבדיקה" in text and "החלפת יחידות מידה" in text  # explained in Hebrew
+    assert "UNIT CHANGE" in "".join(c.value for c in at.code)  # the exact technical line is kept for auditing
     metrics = {m.label: m.value for m in at.metric}
-    assert metrics == {"קריאות API למודל": "0", "אומן מודל": "לא", "הנתונים המקוריים לא השתנו": "כן"}
+    assert metrics == {"צוות 2 (מדען נתונים)": "לא התחיל", "קריאות API בתשלום": "0", "הנתונים המקוריים": "לא השתנו"}
     assert not (project / "artifacts" / "_broken" / "unit_x100_scientist" / "model.joblib").exists()
 
 
@@ -213,3 +216,103 @@ def test_app_code_cannot_start_a_paid_run_or_read_secrets():
     assert "build_llm" not in code and "run_analyst_crew" not in code and "run_scientist_crew" not in code
     assert "getenv" not in code and "os.environ" not in code and "ANTHROPIC_API_KEY" not in code
     assert "run_flow(no_llm_settings())" in code and "run_flow(demo_settings(scenario))" in code
+
+
+# --- Hebrew UI regression tests -------------------------------------------------------------------------------
+
+HEBREW = re.compile("[֐-׿]")
+
+
+def _ui_labels(at: AppTest) -> list[str]:
+    """Every heading, label, button, tab and message a viewer reads (documents shown as written are excluded)."""
+    labels = [e.value for kind in ("title", "subheader", "caption", "info", "warning", "error", "success")
+              for e in getattr(at, kind)]
+    labels += [m.label for m in at.metric] + [b.label for b in at.button] + [s.label for s in at.selectbox]
+    labels += [t.label for t in at.tabs] + [e.label for e in at.expander]
+    return [str(text) for text in labels if str(text).strip()]
+
+
+@pytest.mark.parametrize("page", PAGES)
+def test_every_visible_label_on_every_screen_is_hebrew(project, page):
+    at = _page(page).run()
+    english_only = [text for text in _ui_labels(at) if not HEBREW.search(text)]
+    assert not english_only, english_only
+
+
+def test_hebrew_reports_only_use_numbers_from_the_verified_results(paths):
+    """The Hebrew versions may not contain a number that the English deliverable or its JSON does not have."""
+    from golden_fighter.analysis.insights import render_insights_md
+    from golden_fighter.dashboard import hebrew_reports
+    from golden_fighter.modeling.reports import render_evaluation_report, render_model_card
+    from golden_fighter.tools.grounding import ungrounded_numbers
+
+    facts, evaluation = data.facts(paths), data.evaluation(paths)
+    english_insights = render_insights_md(facts)
+    english_eval = render_evaluation_report(evaluation) + render_model_card(evaluation)
+    checks = {
+        "key_findings": (hebrew_reports.key_findings(facts), [facts, english_insights]),
+        "insights": (hebrew_reports.insights_document(facts), [facts, english_insights]),
+        "evaluation_report": (hebrew_reports.evaluation_report(evaluation), [evaluation, english_eval]),
+        "model_card": (hebrew_reports.model_card(evaluation), [evaluation, english_eval]),
+    }
+    for name, (text, sources) in checks.items():
+        assert HEBREW.search(text), name
+        assert ungrounded_numbers(text, sources) == [], name
+
+
+def test_hebrew_reports_are_built_from_the_json_so_new_results_show_up(paths):
+    from golden_fighter.dashboard import hebrew_reports
+
+    facts = dict(data.facts(paths), churned=1234)
+    assert "1,234" in hebrew_reports.key_findings(facts)  # rendered on every load, never a frozen translation
+
+
+def test_every_gate_failure_of_every_break_scenario_is_explained_in_hebrew(analyst_out, tmp_path):
+    from golden_fighter.contract.breakers import SCENARIOS, make_broken_copy
+    from golden_fighter.contract.validator import run_gate
+    from golden_fighter.dashboard import hebrew
+
+    for scenario in SCENARIOS:
+        result = run_gate(make_broken_copy(analyst_out, scenario, tmp_path / scenario))
+        assert result.errors, scenario
+        for issue in map(str, result.errors + result.warnings):
+            explained = hebrew.gate_issue(issue)
+            assert explained["translated"] and HEBREW.search(explained["text"]), issue
+            assert explained["original"] == issue  # the exact technical line is kept for auditing
+
+
+def test_flow_stage_details_and_unknown_texts_in_hebrew():
+    from golden_fighter.dashboard import hebrew
+
+    assert hebrew.stage_detail("VALIDATION GATE (crew handoff gate): FAILED - 88 checks, 2 errors, 1 warnings") \
+        == "שער הבדיקה נכשל: 88 בדיקות, 2 שגיאות, 1 אזהרות"
+    assert hebrew.stage_detail("not started: the Flow stopped before modelling") == \
+        "לא התחיל: ה-Flow נעצר לפני שלב המודל"
+    assert hebrew.stage_detail("something new happened") == "something new happened"  # never hidden
+    unknown = hebrew.gate_issue("[range] age: a brand-new message")
+    assert not unknown["translated"] and "טווח ערכים" in unknown["text"]
+
+
+def test_hebrew_eda_view_uses_the_same_statistics_as_the_english_report(paths):
+    from golden_fighter.analysis.eda import correlations, describe_features
+
+    df = data.clean_data(paths)
+    table = data.describe_table(df)
+    assert list(table["ממוצע"]) == list(describe_features(df)["mean"].round(2))
+    corr = data.correlation_long(df)
+    assert len(corr) == len(correlations(df)) ** 2 and corr["value"].between(-1, 1).all()
+
+
+def test_single_column_auc_chart_stops_at_one(paths):
+    from golden_fighter.dashboard import ui
+
+    spec = ui.auc_chart(data.leakage_table(data.facts(paths))).to_dict()
+    domains = [layer["encoding"]["x"]["scale"]["domain"] for layer in spec["layer"]
+               if "scale" in layer["encoding"].get("x", {})]
+    assert domains == [[0.5, 1.0]]
+
+
+def test_insights_screen_without_member_level_data_still_shows_the_rest(project):
+    (project / "artifacts" / "analyst" / "clean_data.csv").unlink()  # as on a fresh clone
+    at = _page("insights").run()
+    assert not at.exception and at.metric and "Flow החינמי" in _texts(at)

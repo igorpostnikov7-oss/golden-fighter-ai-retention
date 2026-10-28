@@ -1,5 +1,16 @@
 [theme]
 primaryColor = "#B8860B"
+# System fonts with good Hebrew glyphs (Windows, macOS, Linux), so the app also works offline.
+font = "Segoe UI, Arial Hebrew, Noto Sans Hebrew, Arial, sans-serif"
+headingFont = "Segoe UI, Arial Hebrew, Noto Sans Hebrew, Arial, sans-serif"
+baseFontSize = 17
+textColor = "#1f2328"
+# Darker text inside coloured message boxes, for contrast.
+redTextColor = "#8a1c1c"
+greenTextColor = "#14532d"
+orangeTextColor = "#7a3a0a"
+yellowTextColor = "#6b4e00"
+blueTextColor = "#1e3a8a"
 
 [client]
 toolbarMode = "viewer"

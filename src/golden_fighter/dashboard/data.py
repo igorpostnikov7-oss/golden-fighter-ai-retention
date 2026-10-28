@@ -16,43 +16,43 @@ import yaml
 from golden_fighter import config
 from golden_fighter.contract.breakers import SCENARIOS
 from golden_fighter.contract.validator import ValidationResult, run_gate
-from golden_fighter.dashboard import hebrew
+from golden_fighter.analysis.eda import correlations, describe_features
+from golden_fighter.dashboard import hebrew, hebrew_reports
 from golden_fighter.errors import DataValidationError
 from golden_fighter.modeling.predict import RISK_BANDS, load_model, predict_churn
 from golden_fighter.tools.grounding import strip_source_tags
 
 # Plain-language names for the model inputs (the contract holds the technical descriptions).
 FEATURE_LABELS = {
-    "near_location": "גר או עובד ליד המועדון",
+    "near_location": "גר או עובד קרוב למועדון",
     "partner": "עובד בחברה שותפה",
-    "promo_friends": "הצטרף דרך המלצה של חבר",
+    "promo_friends": "הגיע דרך המלצה של חבר",
     "phone": "מסר מספר טלפון",
-    "contract_period": "תקופת המנוי (חודשים)",
+    "contract_period": "אורך המנוי (חודשים)",
     "group_visits": "משתתף בשיעורים קבוצתיים",
     "age": "גיל (שנים)",
     "avg_additional_charges_total": "הוצאה נוספת ממוצעת (בית קפה, שירותים)",
-    "month_to_end_contract": "חודשים שנותרו למנוי",
-    "lifetime": "חודשים מאז ההצטרפות",
-    "avg_class_frequency_total": "ממוצע ביקורים בשבוע מאז ההצטרפות",
+    "month_to_end_contract": "חודשים עד סוף המנוי",
+    "lifetime": "ותק במועדון (חודשים)",
+    "avg_class_frequency_total": "ממוצע ביקורים בשבוע (מאז ההצטרפות)",
 }
-MODEL_LABELS = {"baseline_majority": "מודל בסיס (ניחוש קבוע)", "logistic_regression": "רגרסיה לוגיסטית",
-                "random_forest": "יער אקראי (Random Forest)"}
-FULL_RUNS = "ריצות מלאות (עם סוכני AI)"
-RUN_KINDS = {FULL_RUNS: "runs", "ריצות חינמיות (ללא AI)": "_no_llm/runs", "הדגמות שבירה": "_broken/runs"}
+MODEL_LABELS = hebrew_reports.MODEL_NAMES
+FULL_RUNS, FREE_RUNS, DEMO_RUNS = "ריצה מלאה עם AI (בתשלום)", "ריצה ללא AI (חינם)", "הדגמת שבירה (חינם)"
+RUN_KINDS = {FULL_RUNS: "runs", FREE_RUNS: "_no_llm/runs", DEMO_RUNS: "_broken/runs"}
 
 # Two example members for the prediction screen (values inside the contract's ranges).
 EXAMPLE_MEMBERS = {
-    "מתאמן חדש, מנוי לחודש אחד": {
+    "מתאמן חדש במנוי חודשי": {
         "near_location": 1, "partner": 0, "promo_friends": 0, "phone": 1, "contract_period": 1, "group_visits": 0,
         "age": 24, "avg_additional_charges_total": 60.0, "month_to_end_contract": 1, "lifetime": 0,
         "avg_class_frequency_total": 1.0},
-    "מתאמן ותיק, מנוי ל-12 חודשים": {
+    "מתאמן ותיק במנוי שנתי": {
         "near_location": 1, "partner": 1, "promo_friends": 1, "phone": 1, "contract_period": 12, "group_visits": 1,
         "age": 33, "avg_additional_charges_total": 220.0, "month_to_end_contract": 9, "lifetime": 14,
         "avg_class_frequency_total": 3.0},
 }
 
-FREE_FLOW_HINT = "הריצו את ה-Flow החינמי (במסך 'ריצות Flow ועלויות') כדי ליצור אותו."
+FREE_FLOW_HINT = "הריצו את ה-Flow החינמי (במסך 'ריצות ועלויות') כדי ליצור אותו."
 
 
 @dataclass
@@ -87,7 +87,7 @@ def facts(paths: Paths) -> dict:
 
 def evaluation(paths: Paths) -> dict:
     return _read_json(paths.scientist_dir / "evaluation.json",
-                      "הריצו את ה-Flow החינמי (במסך 'ריצות Flow ועלויות') כדי לאמן את המודל.")
+                      "הריצו את ה-Flow החינמי (במסך 'ריצות ועלויות') כדי לאמן את המודל.")
 
 
 def contract(paths: Paths) -> dict:
@@ -133,6 +133,49 @@ def churn_by_flags(facts_: dict) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
+# --- EDA (the Hebrew view of eda_report.html; same functions and files as the English report) ---------------
+
+def clean_data(paths: Paths) -> pd.DataFrame:
+    path = paths.analyst_dir / "clean_data.csv"
+    if not path.exists():
+        raise MissingArtifact(f"{_not_found(path)} הוא מכיל שורות ברמת המתאמן ולכן לא נשמר ב-Git. "
+                              f"{FREE_FLOW_HINT}")
+    return pd.read_csv(path)
+
+
+def cleaning_report(paths: Paths) -> dict:
+    return _read_json(paths.analyst_dir / "cleaning_report.json", FREE_FLOW_HINT)
+
+
+def describe_table(df: pd.DataFrame) -> pd.DataFrame:
+    """analysis/eda.py describe_features with Hebrew row and column names."""
+    table = describe_features(df).round(2)
+    table.index = [hebrew.column(c) for c in table.index]
+    return table.rename(columns={"mean": "ממוצע", "std": "סטיית תקן", "min": "מינימום", "50%": "חציון",
+                                 "max": "מקסימום"}).rename_axis("עמודה").reset_index()
+
+
+def correlation_long(df: pd.DataFrame) -> pd.DataFrame:
+    """analysis/eda.py correlations as (row, column, value) rows with Hebrew names, for a heatmap."""
+    corr = correlations(df)
+    corr.index = corr.columns = [hebrew.column(c) for c in corr.columns]
+    return corr.rename_axis("row").reset_index().melt(id_vars="row", var_name="col", value_name="value")
+
+
+def leakage_table(facts_: dict) -> pd.DataFrame:
+    """Single-column AUC per column from insight_facts.json (highest first)."""
+    risk = {"high": "סיכון גבוה", "low": "סיכון נמוך", "none": "אין"}
+    rows = [{"column": hebrew.column(f["column"]), "auc": f["univariate_auc"], "risk": risk.get(f["risk"], f["risk"])}
+            for f in facts_["leakage_findings"]]
+    return pd.DataFrame(rows).sort_values("auc", ascending=False)
+
+
+def mean_profile(facts_: dict) -> pd.DataFrame:
+    rows = [{"מדד": hebrew.column(col), "ממוצע אצל מי שנשאר": m["stayed"], "ממוצע אצל מי שעזב": m["churned"]}
+            for col, m in facts_["mean_stayed_vs_churned"].items()]
+    return pd.DataFrame(rows)
+
+
 # --- model ----------------------------------------------------------------------------------------------------
 
 SELECTED, REFERENCE, NOT_SELECTED, LEAKAGE_ROLE = ("נבחר", "להשוואה בלבד", "לא נבחר",
@@ -164,11 +207,14 @@ SAID_STAY, SAID_LEAVE, STAYED, LEFT = "המודל: יישאר", "המודל: י�
 def confusion_matrix(eval_: dict) -> pd.DataFrame:
     cm = eval_["results"][eval_["selected_model"]]["test"]["confusion_matrix"]
     return pd.DataFrame([
-        {"actual": STAYED, "predicted": SAID_STAY, "members": cm["tn"], "meaning": "נשארו, והמודל צדק"},
-        {"actual": STAYED, "predicted": SAID_LEAVE, "members": cm["fp"],
-         "meaning": "אזעקת שווא: הצעת שימור שלא הייתה נחוצה"},
-        {"actual": LEFT, "predicted": SAID_STAY, "members": cm["fn"], "meaning": "עזבו, והמודל פספס אותם"},
-        {"actual": LEFT, "predicted": SAID_LEAVE, "members": cm["tp"], "meaning": "עזבו, והמודל זיהה אותם בזמן"},
+        {"actual": STAYED, "predicted": SAID_STAY, "members": cm["tn"], "short": "נשארו, זוהו נכון",
+         "term": "True Negative", "meaning": "נשארו, והמודל צדק: לא הוצעה עזרה מיותרת."},
+        {"actual": STAYED, "predicted": SAID_LEAVE, "members": cm["fp"], "short": "אזעקת שווא",
+         "term": "False Positive", "meaning": "נשארו, אבל המודל התריע: הצעת שימור שלא הייתה נחוצה (עלות נמוכה)."},
+        {"actual": LEFT, "predicted": SAID_STAY, "members": cm["fn"], "short": "עוזבים שפוספסו",
+         "term": "False Negative", "meaning": "עזבו, והמודל לא התריע: הטעות היקרה, כי לא הייתה הזדמנות לעזור."},
+        {"actual": LEFT, "predicted": SAID_LEAVE, "members": cm["tp"], "short": "עוזבים שזוהו",
+         "term": "True Positive", "meaning": "עזבו, והמודל התריע בזמן: כאן צוות השימור יכול לפעול."},
     ])
 
 
@@ -182,9 +228,10 @@ def fairness(eval_: dict, key: str) -> pd.DataFrame:
     df = pd.DataFrame(eval_["fairness"][key])
     df["group"] = [hebrew.text(hebrew.GROUPS, g) for g in df["group"]]
     for col in ("actual_churn_rate", "flagged_rate", "recall", "precision"):
-        df[col] = [f"{v:.1%}" if pd.notna(v) else "- (אין עוזבים)" for v in df[col]]
-    return df.rename(columns={"group": "קבוצה", "members": "מתאמנים במבחן", "actual_churn_rate": "שיעור עזיבה בפועל",
-                              "flagged_rate": "שיעור שסומנו", "recall": "Recall", "precision": "Precision"})
+        df[col] = [f"{v:.1%}" if pd.notna(v) else "אין עוזבים" for v in df[col]]
+    return df.rename(columns={"group": "קבוצה", "members": "מתאמנים במבחן", "actual_churn_rate": "עזבו בפועל",
+                              "flagged_rate": "סומנו בסיכון", "recall": "Recall (עוזבים שזוהו)",
+                              "precision": "Precision (אזהרות נכונות)"})
 
 
 def roc_points(paths: Paths) -> pd.DataFrame | None:
@@ -240,8 +287,9 @@ def gate_result(paths: Paths) -> ValidationResult:
     return run_gate(paths.analyst_dir)
 
 
-def break_scenarios() -> dict[str, str]:
-    return {name: hebrew.SCENARIOS.get(name, description) for name, (description, _) in SCENARIOS.items()}
+def break_scenarios() -> dict[str, tuple[str, str]]:
+    """scenario -> (Hebrew title, Hebrew description); English description when no Hebrew exists."""
+    return {name: hebrew.SCENARIOS.get(name, (name, description)) for name, (description, _) in SCENARIOS.items()}
 
 
 def run_break_demo(scenario: str):
@@ -292,18 +340,25 @@ def run_summaries(paths: Paths) -> list[tuple[str, dict]]:
 
 
 # Column names of the run history (screens refer to them by these constants).
-RUN, KIND, API_CALLS, TOOL_RUNS, TOKENS, COST = ("ריצה", "סוג", "קריאות API למודל", "הפעלות כלים של סוכנים",
-                                                 "טוקנים", "עלות משוערת (USD)")
+RUN, KIND, STARTED, API_CALLS, TOOL_RUNS, TOKENS, COST = (
+    "מזהה ריצה", "סוג ריצה", "מתי (UTC)", "קריאות API בתשלום", "הפעלות כלים מקומיות (חינם)", "טוקנים",
+    "עלות משוערת (USD)")
+
+
+def _when(started_at: str) -> str:
+    """2026-10-28T16:23:49... -> 28/10/2026 16:23 (day first, as read in Israel)."""
+    match = re.match(r"(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})", started_at or "")
+    return f"{match[3]}/{match[2]}/{match[1]} {match[4]}:{match[5]}" if match else "-"
 
 
 def run_history(paths: Paths) -> pd.DataFrame:
     rows = []
     for kind, s in run_summaries(paths):
         totals = s.get("totals", {})
-        rows.append({RUN: s["run_id"], KIND: kind, "התחלה (UTC)": s.get("started_at", "")[:19].replace("T", " "),
+        rows.append({RUN: s["run_id"], KIND: kind, STARTED: _when(s.get("started_at", "")),
                      "תוצאה": status_label(s.get("status")),
                      "נעצר בשלב": hebrew.text(hebrew.STAGES, s.get("failed_stage") or "-"),
-                     "מודל שפה": s.get("model") or "ללא (חינם)",
+                     "מודל שפה": s.get("model") or "ללא",
                      API_CALLS: totals.get("model_api_calls", 0),
                      TOOL_RUNS: totals.get("agent_tool_executions", 0),
                      TOKENS: totals.get("total_tokens", 0), COST: totals.get("estimated_cost_usd") or 0.0,

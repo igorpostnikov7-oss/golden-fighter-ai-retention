@@ -178,14 +178,24 @@ ul{padding-left:20px}
 """
 
 
+def describe_features(df: pd.DataFrame) -> pd.DataFrame:
+    """Descriptive statistics per column (the report's section 2; the app shows the same table)."""
+    return df.drop(columns=[ID_COLUMN]).describe().T[["mean", "std", "min", "50%", "max"]]
+
+
+def correlations(df: pd.DataFrame) -> pd.DataFrame:
+    """Pearson correlations between all columns except the id (the report's section 6)."""
+    return df.drop(columns=[ID_COLUMN]).corr().round(3)
+
+
 def build_eda_report(df: pd.DataFrame, cleaning_report: dict, facts: dict) -> str:
     features = df.drop(columns=[ID_COLUMN])
     rate_tables = {key: pd.DataFrame(facts[key]) for key in
                    ("churn_by_contract_period", "churn_by_lifetime", "churn_by_age_band")}
     flags_df = pd.DataFrame(facts["churn_by_flag"]).T[["label", "rate_if_no", "rate_if_yes"]]
-    corr = features.corr().round(3)
+    corr = correlations(df)
     leakage_df = pd.DataFrame(facts["leakage_findings"]).set_index("column")
-    describe = features.describe().T[["mean", "std", "min", "50%", "max"]]
+    describe = describe_features(df)
     seg = facts["high_risk_segment"]
 
     dropped = (cleaning_report["dropped_non_numeric_or_null"] + cleaning_report["dropped_duplicates"]
