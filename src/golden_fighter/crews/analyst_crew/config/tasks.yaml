@@ -1,0 +1,32 @@
+# Run in this order. Rules for every task: use only numbers returned by your tools; if a tool answers
+# STOP or REFUSED, do not call more tools and give that failure message as your final answer.
+clean_data_task:
+  agent: data_quality_engineer
+  description: >
+    Call profile_raw_data once to inspect the raw file, then call clean_data once.
+    Do not edit any file yourself. If a tool answers STOP, REFUSED or ERROR, stop and report it.
+  expected_output: >
+    A short cleaning report (at most 6 bullet points): rows in, rows out, rows dropped by each
+    reason, and any notes, using the exact numbers from the tools.
+
+eda_task:
+  agent: eda_insights_analyst
+  context: [clean_data_task]
+  description: >
+    Call run_eda once. Then write 4 to 6 markdown bullet points for the club's retention manager:
+    the overall churn rate, the strongest churn drivers, the high-risk segment and one caveat
+    about the leakage-risk column. Write rates as percentages with at most one decimal
+    (0.4232 becomes 42.3%). Save the bullets with write_insights_summary. If it answers REJECTED,
+    correct the listed numbers using the run_eda result and call it again.
+  expected_output: >
+    The saved bullet-point summary, exactly as accepted by write_insights_summary.
+
+contract_task:
+  agent: data_contract_specialist
+  context: [clean_data_task, eda_task]
+  description: >
+    Call build_contract once, then call contract_self_check once to run the validation gate on
+    the four analyst artifacts. You cannot change the gate's verdict.
+  expected_output: >
+    Contract version, target column, forbidden and excluded columns (one short reason each),
+    the cross-column rules, and the gate result (PASSED with the number of checks, or the failure).
