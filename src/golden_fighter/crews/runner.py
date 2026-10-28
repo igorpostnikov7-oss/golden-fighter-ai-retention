@@ -131,6 +131,7 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
 
     if run_log.blocked_by is not None:  # the gate said no: that verdict wins over anything the agent wrote
         fail("validation_failed", str(run_log.blocked_by))
+        run_log.blocked_by.crew_record = record  # so the Flow can still report this run's usage and cost
         raise run_log.blocked_by
     if error is not None:
         source_failures = [c["detail"] for c in run_log.calls if c["tool"] == "source_check"]

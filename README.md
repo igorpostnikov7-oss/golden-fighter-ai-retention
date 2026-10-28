@@ -11,6 +11,24 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 > M2 done: validation gate + 13 "break it on purpose" scenarios.
 > M3 done: baseline vs Logistic Regression vs Random Forest, evaluation report and model card.
 > M4 done: two CrewAI crews (3 agents each) that run the tested pipeline through tools; tested with a mock LLM.
+> M5 done: the CrewAI Flow connecting Crew 1 -> validation gate -> Crew 2, with failure report and run summary.
+
+## Run the Flow
+```powershell
+# Free, no API key: the same Flow with the deterministic pipelines doing the crews' work.
+# Writes to artifacts/_no_llm/ so the validated, agent-written artifacts are never replaced.
+.\.venv\Scripts\python.exe -m golden_fighter.flow.main --no-llm
+
+# "Break it on purpose": dollars -> cents in a COPY of the clean data. The gate refuses, Crew 2 never starts,
+# exit code 1, and failure_report.md explains every violation (artifacts/_broken/runs/<run_id>/).
+.\.venv\Scripts\python.exe -m golden_fighter.flow.main --demo-break unit_x100
+
+# Full run with the agents (costs money, Claude via ANTHROPIC_API_KEY; model from GF_LLM_MODEL):
+.\.venv\Scripts\python.exe -m golden_fighter.flow.main --no-retries
+```
+Every run writes `run_summary.json` (status, stages, gate result, which files THIS run produced, model calls,
+tokens, estimated cost, headline metrics) to `artifacts/runs/<run_id>/`. Exit code: 0 succeeded,
+1 validation failed (no model trained), 2 crew/API/setup error.
 
 ## Dataset
 Public Kaggle dataset "Gym Customers Features and Churn". See [`data/raw/DATA_SOURCE.md`](data/raw/DATA_SOURCE.md).
