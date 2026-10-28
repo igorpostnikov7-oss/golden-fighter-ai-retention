@@ -1,0 +1,4 @@
+# Keep line endings stable so artifact hashes are identical on every OS
+* text=auto eol=lf
+*.png binary
+*.joblib binary
