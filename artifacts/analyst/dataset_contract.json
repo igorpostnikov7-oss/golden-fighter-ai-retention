@@ -1,7 +1,8 @@
 {
-  "contract_version": "1.0",
+  "contract_version": "1.1",
   "dataset_name": "Gym customers features and churn (Kaggle)",
   "produced_by": "Data Analyst Crew",
+  "prediction_time": "Start of the month for which churn is predicted (monthly snapshot).",
   "clean_data_file": "clean_data.csv",
   "clean_data_sha256": "e792eb7a4f35a5c978270b4e2e5b6652d8f0d1cc33c2a5db35ba00cd19d6aa8b",
   "row_count_min": 2000,
@@ -30,6 +31,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Technical row id; not a business fact.",
       "observed": {
         "min": 1.0,
         "max": 4000.0,
@@ -56,6 +59,8 @@
       "sensitive": true,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -82,6 +87,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -108,6 +115,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -134,6 +143,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -160,6 +171,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -187,6 +200,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 1.0,
         "max": 12.0,
@@ -213,6 +228,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
@@ -236,6 +253,8 @@
       "sensitive": true,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 18.0,
         "max": 41.0,
@@ -247,7 +266,7 @@
       "dtype": "float",
       "role": "feature",
       "description": "Average spend on extra services (cafe, shop, massage) over the membership.",
-      "unit": "currency units as provided by the source (not converted)",
+      "unit": "currency units (source, unconverted)",
       "nullable": false,
       "allowed_values": null,
       "min": 0.0,
@@ -259,6 +278,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.1482,
         "max": 552.5907,
@@ -282,6 +303,8 @@
       "sensitive": false,
       "leakage_risk": "low",
       "leakage_note": "Known at snapshot time, but tightly coupled to contract_period.",
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 1.0,
         "max": 12.0,
@@ -305,6 +328,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Known from the member's record before the churn month.",
       "observed": {
         "min": 0.0,
         "max": 31.0,
@@ -328,6 +353,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": true,
+      "availability_note": "Assumed to be computed from visit history up to the snapshot. If the source included the churn month this would need re-checking.",
       "observed": {
         "min": 0.0,
         "max": 6.0237,
@@ -351,6 +378,8 @@
       "sensitive": false,
       "leakage_risk": "high",
       "leakage_note": "Measured in the same month the churn label refers to, so it partly records the churn itself (churners' visits drop sharply). Excluded from the primary model; allowed only in a documented leakage ablation.",
+      "available_before_churn": false,
+      "availability_note": "Only complete at the end of the churn month, i.e. after the prediction time.",
       "observed": {
         "min": 0.0,
         "max": 6.1468,
@@ -374,6 +403,8 @@
       "sensitive": false,
       "leakage_risk": "none",
       "leakage_note": null,
+      "available_before_churn": false,
+      "availability_note": "The outcome itself; known only afterwards.",
       "observed": {
         "min": 0.0,
         "max": 1.0,
