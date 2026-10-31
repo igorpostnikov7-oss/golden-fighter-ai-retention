@@ -1,0 +1,37 @@
+# Run in this order. Rules for every task: use only numbers returned by your tools; if a tool answers
+# STOP or REFUSED, do not call more tools and give that failure message as your final answer.
+# The runner appends the source rules (tools/attribution.py) to every expected_output and checks each
+# final answer in code: every number must appear in the result of the tool it is credited to.
+features_task:
+  agent: feature_engineer
+  description: >
+    Call inspect_contract once to see which features the contract allows, then call
+    build_features once. Never add the target, an identifier, a forbidden column or a
+    leakage-excluded column. If a tool answers STOP, REFUSED or ERROR, stop and report it.
+  expected_output: >
+    The primary features used, the engineered features, the excluded columns with a short reason
+    each taken from the reasons returned by inspect_contract (write "no reason stated" if there is
+    none), and the row counts of the train and test splits.
+
+training_task:
+  agent: model_trainer_evaluator
+  context: [features_task]
+  description: >
+    Call train_and_compare_models once. Explain the comparison: each model's cross-validation
+    ROC-AUC and test recall, precision and ROC-AUC, which model was selected and by which rule,
+    and why the leakage ablation's higher score must not be used.
+  expected_output: >
+    A compact comparison table of all models plus 3 to 5 bullet points on the selection and the
+    leakage ablation, using only the tool's numbers.
+
+model_card_task:
+  agent: model_card_specialist
+  context: [training_task]
+  description: >
+    Call write_model_reports once. Then write 4 to 6 markdown bullet points for the retention
+    team: what the model predicts, how well it finds churners (recall and precision of the
+    selected model as percentages with at most one decimal), the fairness result, the main
+    limitation and the allowed use. Save them with write_model_card_summary. If it answers
+    REJECTED, correct the listed numbers and call it again.
+  expected_output: >
+    The saved bullet-point summary, exactly as accepted by write_model_card_summary.

@@ -2,6 +2,16 @@
 
 _Produced by the Data Analyst crew from `clean_data.csv`. All numbers are computed in code._
 
+<!-- agent-summary:start -->
+## Analyst summary (written by the EDA & Insights agent)
+
+- **Overall churn:** 1,061 of 4,000 members churned, a churn rate of 26.5%.
+- **Strongest drivers:** Short contracts and short tenure. 1-month contracts churn at 42.3%, versus 12.5% for 6-month and 2.4% for 12-month contracts. Members in their first 0-1 months churn at 61.4%, versus 0.3% for members with 7+ months. Under-25s churn at 66.2%, and the 30-34 band at 11.8%.
+- **Engagement and referral signals:** Members who attend group classes churn at 17.3%, versus 33.0% for those who do not. Members who joined via friend referral churn at 15.8%, versus 31.3% for those who did not.
+- **High-risk segment:** 1-month contract, joined in the last 0-1 months, and no group classes. It holds 644 members (16.1% of the base) and churns at 80.3%. This is the first group to target with onboarding and class-enrolment outreach.
+- **Caveat on leakage:** avg_class_frequency_current_month (AUC 0.7749) is measured in the same month as the churn label, so it partly records the churn itself. It is excluded from the primary model. Treat the drivers above as associations, not proven causes.
+<!-- agent-summary:end -->
+
 ## Executive summary
 
 - **1,061 of 4,000 members churned (26.5%).** About one member in four leaves, so retention is a real revenue lever.

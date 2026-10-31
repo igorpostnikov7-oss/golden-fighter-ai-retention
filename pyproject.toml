@@ -11,6 +11,11 @@ requires-python = ">=3.10,<3.14"
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+golden_fighter = ["crews/*/config/*.yaml"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+# CrewAI's own internals use deprecated attributes; our code does not.
+filterwarnings = ["ignore::DeprecationWarning:crewai.*"]

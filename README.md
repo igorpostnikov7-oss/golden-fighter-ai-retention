@@ -10,6 +10,7 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 > Status: work in progress. M1 done: deterministic Data Analyst pipeline + dataset contract.
 > M2 done: validation gate + 13 "break it on purpose" scenarios.
 > M3 done: baseline vs Logistic Regression vs Random Forest, evaluation report and model card.
+> M4 done: two CrewAI crews (3 agents each) that run the tested pipeline through tools; tested with a mock LLM.
 
 ## Dataset
 Public Kaggle dataset "Gym Customers Features and Churn". See [`data/raw/DATA_SOURCE.md`](data/raw/DATA_SOURCE.md).
@@ -41,6 +42,13 @@ Run the Data Scientist pipeline (plain Python, no API calls). It runs the gate f
 `features.csv`, `model.joblib`, `evaluation_report.md` and `model_card.md` to `artifacts/scientist/`:
 ```powershell
 .\.venv\Scripts\python.exe -m golden_fighter.modeling.pipeline
+```
+
+Run one crew with real Claude agents (uses the Anthropic API and costs money; the model comes from
+`GF_LLM_MODEL`, default Claude Haiku 5.5). Token usage and the estimated cost are appended to `logs/crew_runs.jsonl`:
+```powershell
+.\.venv\Scripts\python.exe -m golden_fighter.crews.run analyst
+.\.venv\Scripts\python.exe -m golden_fighter.crews.run scientist
 ```
 
 Run instructions for the Flow and the app will be added as those milestones land.
