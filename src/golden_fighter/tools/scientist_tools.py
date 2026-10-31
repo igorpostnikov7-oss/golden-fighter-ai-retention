@@ -15,7 +15,7 @@ from golden_fighter.modeling import pipeline as steps
 from golden_fighter.modeling.features import (ENGINEERED_FEATURES, TEST_SIZE, ensure_crew1_artifact_dir,
                                               load_validated_inputs)
 from golden_fighter.tools.base import PipelineTool, ToolInputRejected, contract_reasons
-from golden_fighter.tools.grounding import ungrounded_numbers, upsert_agent_section
+from golden_fighter.tools.grounding import strip_source_tags, ungrounded_numbers, upsert_agent_section
 
 SUMMARY_MIN_CHARS = 150
 SUMMARY_MAX_CHARS = 1500
@@ -121,7 +121,7 @@ class WriteModelCardSummaryTool(ScientistTool):
     max_usage_count: int | None = 3
 
     def execute(self, summary: str) -> dict:
-        summary = summary.strip()
+        summary = strip_source_tags(summary)
         if not SUMMARY_MIN_CHARS <= len(summary) <= SUMMARY_MAX_CHARS:
             raise ToolInputRejected(f"The summary must be {SUMMARY_MIN_CHARS}-{SUMMARY_MAX_CHARS} characters, "
                                     f"got {len(summary)}.")

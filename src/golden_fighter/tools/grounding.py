@@ -7,6 +7,9 @@ number in the facts, or that number x100 (a percentage), rounds to it at the pre
 import re
 
 NUMBER_RE = re.compile(r"(?<![\w.])\d+(?:,\d{3})*(?:\.\d+)?")
+# "[source: tool_name]" credits a number in an agent's answer (tools/attribution.py). Useful in an answer,
+# noise in a saved document, so summaries are saved without them.
+SOURCE_TAG_RE = re.compile(r"\s*\[source:\s*([^\]]*)\]", re.IGNORECASE)
 # Small whole numbers ("5-fold", "3 agents", "12-month contract") are always allowed.
 ALWAYS_ALLOWED = set(range(0, 13))
 
@@ -58,6 +61,10 @@ def ungrounded_numbers(text: str, facts) -> list[str]:
             continue
         bad.append(raw)
     return bad
+
+
+def strip_source_tags(text: str) -> str:
+    return "\n".join(SOURCE_TAG_RE.sub("", line).rstrip() for line in text.splitlines()).strip()
 
 
 def upsert_agent_section(document: str, heading: str, body: str) -> str:

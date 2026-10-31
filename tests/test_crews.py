@@ -392,3 +392,21 @@ def test_selected_model_importance_presented_as_ablation_is_caught(training_run)
     for ok in (f"The leakage ablation scored test ROC-AUC {ablation['test_roc_auc']}.",
                f"The ablation's CV ROC-AUC {ablation['cv_roc_auc']['mean']} is diagnostic only."):
         assert attribution_problems(ok, results, own) == []
+
+
+def test_saved_summaries_drop_source_tags(training_run):
+    """Live run 28.10: the model card was saved with '[source: ...]' tags. The tags stay in answers only."""
+    result, sci = training_run
+    tools = scientist_tools(ToolRunLog(), sci.parent / "analyst", sci)
+    tools["write_model_reports"]._run()
+    recall = json.loads((sci / "evaluation.json").read_text(encoding="utf-8"))["results"][result["selected_model"]]
+    summary = (f"- Finds {recall['test']['recall'] * 100:.1f}% of churners. [source: train_and_compare_models]\n"
+               "- Use scores only to offer help to members, never to penalise anyone for leaving the club.\n"
+               "- The leakage experiment is diagnostic only and is never deployed.")
+    assert tools["write_model_card_summary"]._run(summary=summary).startswith("{")
+    card = (sci / "model_card.md").read_text(encoding="utf-8")
+    assert "[source:" not in card and f"{recall['test']['recall'] * 100:.1f}% of churners." in card
+
+
+def test_source_rules_ask_for_a_dash_in_tables():
+    assert "in a table, write a dash (-)" in SOURCE_RULES

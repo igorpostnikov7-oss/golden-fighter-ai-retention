@@ -12,6 +12,17 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 > M3 done: baseline vs Logistic Regression vs Random Forest, evaluation report and model card.
 > M4 done: two CrewAI crews (3 agents each) that run the tested pipeline through tools; tested with a mock LLM.
 > M5 done: the CrewAI Flow connecting Crew 1 -> validation gate -> Crew 2, with failure report and run summary.
+> M6 done: Streamlit dashboard (offline; never calls the Claude API).
+
+## Open the dashboard
+```powershell
+.\.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py     # then open http://localhost:8501
+```
+The app is in Hebrew (right to left, navigation in the top bar). Six screens: Overview, Churn insights, Model
+performance, Predict churn, Runs & costs, Break-the-data demo. Reports are shown in Hebrew versions generated
+from the same verified JSON; the original English deliverables are unchanged and one click away in the app.
+The app reads the committed results and never calls the Claude API. Its two buttons are free and safe: a Flow
+run without AI (writes to `artifacts/_no_llm/`) and the break demo (works on a copy in `artifacts/_broken/`).
 
 ## Run the Flow
 ```powershell
