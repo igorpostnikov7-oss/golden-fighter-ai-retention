@@ -302,7 +302,7 @@ def demo_source_dir() -> Path:
                             "Run the free Flow first: python -m golden_fighter.flow.main --no-llm")
 
 
-def _new_demo_dir(base: Path, scenario: str) -> Path:
+def new_demo_dir(base: Path, scenario: str) -> Path:
     """A new, uniquely named folder for one break demo. Existing folders, including ones written by earlier
     versions without the demo-copy marker, are never reused, changed or deleted."""
     base.mkdir(parents=True, exist_ok=True)
@@ -321,7 +321,7 @@ def demo_settings(scenario: str) -> FlowSettings:
     touched; the run summaries of all demos stay together in artifacts/_broken/runs/."""
     base = config.ARTIFACTS_DIR / "_broken"  # gitignored
     source = demo_source_dir()  # checked first, so a demo that cannot start leaves no empty folder
-    demo_dir = _new_demo_dir(base, scenario)
+    demo_dir = new_demo_dir(base, scenario)
     broken = make_broken_copy(source, scenario, demo_dir / "analyst")
     return FlowSettings(analyst_dir=broken, scientist_dir=demo_dir / "scientist", runs_dir=base / "runs",
                         use_llm=False, from_artifacts=True, demo_scenario=scenario)
