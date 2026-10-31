@@ -58,6 +58,41 @@ def test_breaker_refuses_to_overwrite_originals(analyst_out):
         make_broken_copy(analyst_out, "unit_x100", analyst_out)
 
 
+def test_breaker_preserves_source_parent(analyst_out):
+    before = _hashes(analyst_out)
+    with pytest.raises(ValueError, match="Refusing"):
+        make_broken_copy(analyst_out, "unit_x100", analyst_out.parent)
+    assert _hashes(analyst_out) == before
+
+
+def test_breaker_refuses_output_inside_source(analyst_out):
+    with pytest.raises(ValueError, match="Refusing"):
+        make_broken_copy(analyst_out, "unit_x100", analyst_out / "nested")
+    assert not (analyst_out / "nested").exists()
+
+
+def test_breaker_preserves_unrelated_directory(analyst_out, tmp_path):
+    note = tmp_path / "important.txt"
+    note.write_text("keep me")
+    with pytest.raises(ValueError, match="Refusing"):
+        make_broken_copy(analyst_out, "unit_x100", tmp_path)
+    assert note.read_text() == "keep me"
+
+
+def test_breaker_can_reuse_owned_copy_but_preserves_added_files(analyst_out, tmp_path):
+    out = tmp_path / "demo"
+    make_broken_copy(analyst_out, "missing_artifact", out)
+    make_broken_copy(analyst_out, "unit_x100", out)
+    assert "unit_or_distribution" in {i.check for i in run_gate(out).errors}
+    before = (out / "clean_data.csv").read_bytes()
+    note = out / "important.txt"
+    note.write_text("keep me")
+    with pytest.raises(ValueError, match="Refusing"):
+        make_broken_copy(analyst_out, "unit_x100", out)
+    assert note.read_text() == "keep me"
+    assert (out / "clean_data.csv").read_bytes() == before
+
+
 def test_cli_exit_codes_and_report(analyst_out, tmp_path, capsys):
     report = tmp_path / "report.json"
     assert gate.main(["--analyst-dir", str(analyst_out), "--report", str(report)]) == 0

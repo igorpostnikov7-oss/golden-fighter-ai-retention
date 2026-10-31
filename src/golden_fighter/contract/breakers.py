@@ -12,6 +12,7 @@ import pandas as pd
 from golden_fighter.contract.validator import REQUIRED_ARTIFACTS
 
 MONEY = "avg_additional_charges_total"
+COPY_MARKER = ".golden-fighter-demo"
 
 
 def _edit_csv(out_dir: Path, change) -> None:
@@ -69,11 +70,23 @@ SCENARIOS = {
 def make_broken_copy(source_dir: Path, scenario: str, out_dir: Path) -> Path:
     if scenario not in SCENARIOS:
         raise ValueError(f"Unknown scenario '{scenario}'. Choose from: {', '.join(SCENARIOS)}")
-    if out_dir.resolve() == source_dir.resolve():
+    source = source_dir.resolve()
+    destination = out_dir.resolve()
+    if destination == source or destination in source.parents or source in destination.parents:
         raise ValueError("Refusing to break the original artifacts; choose a different output directory")
+    if out_dir.is_symlink() or destination != out_dir.absolute():
+        raise ValueError("Refusing to overwrite a linked output directory")
     if out_dir.exists():
-        shutil.rmtree(out_dir)
-    out_dir.mkdir(parents=True)
+        entries = list(out_dir.iterdir())
+        marker = out_dir / COPY_MARKER
+        allowed = {*REQUIRED_ARTIFACTS, COPY_MARKER}
+        if entries and (not marker.is_file() or marker.is_symlink()
+                        or marker.read_text(encoding="utf-8") != "Golden Fighter demo copy\n"):
+            raise ValueError("Refusing to overwrite an unowned output directory")
+        if any(p.name not in allowed or not p.is_file() or p.is_symlink() for p in entries):
+            raise ValueError("Refusing to overwrite unrelated output contents")
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / COPY_MARKER).write_text("Golden Fighter demo copy\n", encoding="utf-8")
     for name in REQUIRED_ARTIFACTS:
         shutil.copy2(source_dir / name, out_dir / name)
     SCENARIOS[scenario][1](out_dir)
