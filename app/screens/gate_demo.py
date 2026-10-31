@@ -13,13 +13,16 @@ ui.header("הדגמת שבירת נתונים", "תקלה אמיתית: מישה
 
 
 def _fingerprints() -> dict:
-    files = sorted(config.ANALYST_DIR.glob("*")) + [config.RAW_DATA_PATH]
-    return {f.name: sha256(f) for f in files if f.is_file()}
+    files = sorted(config.ANALYST_DIR.glob("*")) + sorted(data.demo_source().glob("*")) + [config.RAW_DATA_PATH]
+    return {str(f): sha256(f) for f in files if f.is_file()}
 
 
 def render():
     st.subheader("שלב 1: הנתונים האמיתיים היום")
-    result = data.gate_result(ui.paths())
+    result, validated = data.gate_result(ui.paths())
+    if not validated:
+        st.caption("בודקים את הקבצים שהריצה החינמית יצרה (`artifacts/_no_llm/analyst/`), כי בעותק הזה של הפרויקט "
+                   "`clean_data.csv` המאומת לא נשמר ב-Git.")
     if result.passed:
         st.success(f"הנתונים הנוכחיים עוברים את השער: {result.checks_run} בדיקות, 0 שגיאות.",
                    icon=":material/verified:")
@@ -40,7 +43,7 @@ def render():
             state = data.run_break_demo(scenario)
         after = _fingerprints()
         st.session_state["demo"] = (scenario, state.model_dump(mode="json"), before == after,
-                                    before.get(config.RAW_DATA_PATH.name, ""), after.get(config.RAW_DATA_PATH.name, ""))
+                                    before.get(str(config.RAW_DATA_PATH), ""), after.get(str(config.RAW_DATA_PATH), ""))
 
     if "demo" in st.session_state:
         scenario, summary, untouched, raw_before, raw_after = st.session_state["demo"]

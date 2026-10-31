@@ -2,3 +2,5 @@
 * text=auto eol=lf
 *.png binary
 *.joblib binary
+# CSV data is stored byte for byte (CRLF as written), so its SHA-256 matches DATA_SOURCE.md and the contract
+*.csv -text

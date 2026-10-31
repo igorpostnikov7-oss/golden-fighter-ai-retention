@@ -17,10 +17,11 @@ __pycache__/
 logs/*
 !logs/.gitkeep
 
-# Dataset + row-level derived data: kept out of git until the Kaggle license is verified
+# Dataset + row-level derived data ARE committed (CC BY-NC-SA 4.0, see data/LICENSE-DATA.md):
+# data/raw/gym_churn.csv, artifacts/analyst/clean_data.csv, artifacts/scientist/features.csv.
+# Any other CSV in data/raw/ stays local.
 data/raw/*.csv
-artifacts/analyst/clean_data.csv
-artifacts/scientist/features.csv
+!data/raw/gym_churn.csv
 
 # Scratch / data dumps
 *.zip

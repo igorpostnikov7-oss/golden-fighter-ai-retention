@@ -282,9 +282,20 @@ def issue_in_hebrew(message: str) -> str:
 
 # --- gate, demo and runs --------------------------------------------------------------------------------------
 
-def gate_result(paths: Paths) -> ValidationResult:
-    """The validation gate on the current analyst artifacts (read-only)."""
-    return run_gate(paths.analyst_dir)
+def demo_source() -> Path:
+    """The Crew 1 artifacts the break demo copies (see flow.main.demo_source_dir), or a friendly message."""
+    from golden_fighter.flow.main import demo_source_dir
+    try:
+        return demo_source_dir()
+    except FileNotFoundError:
+        raise MissingArtifact("להדגמה צריך סט מלא של קבצי צוות 1, כולל `clean_data.csv` (שלא נשמר ב-Git). "
+                              f"{FREE_FLOW_HINT}") from None
+
+
+def gate_result(paths: Paths) -> tuple[ValidationResult, bool]:
+    """The validation gate on the files the demo will copy (read-only). True = the validated, committed set."""
+    source = demo_source()
+    return run_gate(source), source.resolve() == paths.analyst_dir.resolve()
 
 
 def break_scenarios() -> dict[str, tuple[str, str]]:
@@ -295,8 +306,7 @@ def break_scenarios() -> dict[str, tuple[str, str]]:
 def run_break_demo(scenario: str):
     """Break a COPY of Crew 1's artifacts and run the Flow on it (no AI, free). Returns the FlowState."""
     from golden_fighter.flow.main import demo_settings, run_flow
-    if not (config.ANALYST_DIR / "clean_data.csv").exists():
-        raise MissingArtifact("כדי ליצור עותק שבור צריך את `clean_data.csv`. הריצו קודם את ה-Flow החינמי.")
+    demo_source()  # a friendly message instead of a crash when no complete set exists yet
     return run_flow(demo_settings(scenario))
 
 
