@@ -63,7 +63,7 @@ so nothing else needs downloading. To check it is the original Kaggle file:
 
 **Run it** (no API key needed for any of these):
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q                                   # 228 tests, about 2 minutes
+.\.venv\Scripts\python.exe -m pytest -q                                   # the full test suite, about 2 minutes
 .\.venv\Scripts\python.exe -m golden_fighter.flow.main --no-llm           # the whole Flow, free (exit 0)
 .\.venv\Scripts\python.exe -m golden_fighter.flow.main --demo-break unit_x100   # break it on purpose (exit 1)
 .\.venv\Scripts\python.exe -m streamlit run app/streamlit_app.py          # the app: http://localhost:8501

@@ -28,7 +28,16 @@ EVALUATION_REPORT_PATH = SCIENTIST_DIR / "evaluation_report.md"
 MODEL_CARD_PATH = SCIENTIST_DIR / "model_card.md"
 
 # Haiku for development (cheap); set GF_LLM_MODEL=anthropic/claude-sonnet-5-5 for final runs.
-LLM_MODEL = os.getenv("GF_LLM_MODEL", "anthropic/claude-haiku-5-5")
+DEFAULT_LLM_MODEL = "anthropic/claude-haiku-5-5"
+
+
+def llm_model_from(value: str | None) -> str:
+    """The model to use: GF_LLM_MODEL, or the default when it is missing, empty or only whitespace
+    (as in a .env copied from .env.example). An explicit choice is kept, without surrounding spaces."""
+    return (value or "").strip() or DEFAULT_LLM_MODEL
+
+
+LLM_MODEL = llm_model_from(os.getenv("GF_LLM_MODEL"))
 
 # Hard limits that keep an agent run cheap and bounded (see golden_fighter/llm.py).
 LLM_MAX_TOKENS = 2048          # per model response
