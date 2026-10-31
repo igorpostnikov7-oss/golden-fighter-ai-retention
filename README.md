@@ -135,5 +135,5 @@ All 8 deliverables of the two crews are committed, from the verified live run.
 
 ## Project status
 All milestones complete: data layer, validation gate, models, two crews, the Flow, the Streamlit app,
-submission documents and the presentation. Progress, verified results and known issues:
-[`PROJECT_PROGRESS.md`](PROJECT_PROGRESS.md).
+submission documents and the presentation. Every requirement of the course brief and where it is met:
+[`docs/requirements_checklist.md`](docs/requirements_checklist.md).

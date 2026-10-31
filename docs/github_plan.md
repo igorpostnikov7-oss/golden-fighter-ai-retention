@@ -9,8 +9,9 @@ owner's approval. The course requires a **public** repository and real Pull Requ
    byte (`*.csv -text`).
 2. **Code:** MIT License (`LICENSE`), scoped to the code and documentation.
 3. **Repository:** `igorpostnikov7-oss/golden-fighter-ai-retention`, public.
-4. Still open: the commit author e-mail (`a personal address (rewritten)` in every commit) — keep it, or rewrite the
-   author to the GitHub no-reply address before the first push (it changes every commit id).
+4. **Commit identity:** every commit uses the GitHub no-reply address of the account (ID-based form, see
+   GitHub's "Email addresses reference"), so no personal e-mail is published. Local working notes are kept out of
+   the repository.
 
 ## Branches and Pull Requests
 The milestone branches are stacked, each built on the previous one:

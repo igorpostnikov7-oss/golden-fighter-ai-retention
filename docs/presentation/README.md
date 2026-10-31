@@ -11,11 +11,12 @@ The editable original is a private Claude Slides artifact: https://claude.ai/art
 (only the owner can open it; its menu can also export an editable PowerPoint). The PDF and PowerPoint here were
 rendered from that deck's published slide files.
 
-**Placeholders to fill in before presenting**, marked on the slides in bright yellow with `[למלא: …]`:
-- Slide 1: `[למלא: השם שלך]` (the presenter's name)
+**Presenter:** Igor Postnikov (slide 1).
+
+**Placeholder to fill in after the repository is created**, marked on the slide in bright yellow:
 - Slide 15: `[למלא: קישור ל-GitHub]` (planned: https://github.com/igorpostnikov7-oss/golden-fighter-ai-retention)
 
-After filling them in the deck, export again (or ask Claude to re-render the PDF and PowerPoint).
+After filling it in the deck, export again (or ask Claude to re-render the PDF and PowerPoint).
 
 Every number in the slides comes from the committed artifacts (`artifacts/scientist/evaluation.json`,
 `artifacts/analyst/insight_facts.json`, `artifacts/runs/20261028T162349Z-07b240/run_summary.json`) and the break

@@ -61,7 +61,7 @@ Status: ✅ done · ⏳ waiting for the project owner's approval (publishing) ·
 
 | Check | Status | Evidence |
 |---|---|---|
-| Clone, run the Flow once, see Crew 1's 4 artifacts, the gate pass, Crew 2's 4 artifacts | ✅ | Fresh-clone install test (PROJECT_PROGRESS.md). The live run with the agents needs an API key; without one, `--no-llm` runs the same Flow free. The verified live run `20261028T162349Z-07b240` is committed |
+| Clone, run the Flow once, see Crew 1's 4 artifacts, the gate pass, Crew 2's 4 artifacts | ✅ | Fresh-clone install test (clean clone, new Python 3.12 environment, README steps: all tests pass, the free Flow and the break demo behave as documented, the app starts). The live run with the agents needs an API key; without one, `--no-llm` runs the same Flow free. The verified live run `20261028T162349Z-07b240` is committed |
 | Results visible in the app | ✅ | Streamlit app reads the committed artifacts |
 | Change one unit in the clean data, run again, the Flow refuses to train | ✅ | `--demo-break unit_x100`: exit 1, gate names the column and the ×100 unit change, no model trained |
 
