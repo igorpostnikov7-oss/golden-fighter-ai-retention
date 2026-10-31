@@ -1,0 +1,24 @@
+{
+  "rows_in": 4000,
+  "rows_out": 4000,
+  "dropped_non_numeric_or_null": 0,
+  "dropped_duplicates": 0,
+  "dropped_by_rule": {},
+  "renamed_columns": {
+    "gender": "gender",
+    "Near_Location": "near_location",
+    "Partner": "partner",
+    "Promo_friends": "promo_friends",
+    "Phone": "phone",
+    "Contract_period": "contract_period",
+    "Group_visits": "group_visits",
+    "Age": "age",
+    "Avg_additional_charges_total": "avg_additional_charges_total",
+    "Month_to_end_contract": "month_to_end_contract",
+    "Lifetime": "lifetime",
+    "Avg_class_frequency_total": "avg_class_frequency_total",
+    "Avg_class_frequency_current_month": "avg_class_frequency_current_month",
+    "Churn": "churn"
+  },
+  "notes": []
+}

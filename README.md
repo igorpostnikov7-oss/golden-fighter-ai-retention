@@ -7,7 +7,7 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 - **Crew 2 — Data Scientist** engineers features, trains and compares models, and writes a model card.
 - **Streamlit app** shows the results and a live "break the data" demo.
 
-> Status: work in progress (milestone M0: project setup).
+> Status: work in progress. M1 done: deterministic Data Analyst pipeline + dataset contract.
 
 ## Dataset
 Public Kaggle dataset "Gym Customers Features and Churn". See [`data/raw/DATA_SOURCE.md`](data/raw/DATA_SOURCE.md).
@@ -20,6 +20,12 @@ py -3.12 -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -e .
 copy .env.example .env   # then add your ANTHROPIC_API_KEY
 .\.venv\Scripts\python.exe -m pytest -q
+```
+
+Run the Data Analyst pipeline (plain Python, no API calls). It reads `data/raw/gym_churn.csv` and writes
+`clean_data.csv`, `eda_report.html`, `insights.md` and `dataset_contract.json` to `artifacts/analyst/`:
+```powershell
+.\.venv\Scripts\python.exe -m golden_fighter.analysis.pipeline
 ```
 
 Run instructions for the Flow and the app will be added as those milestones land.

@@ -1,0 +1,235 @@
+{
+  "members": 4000,
+  "churned": 1061,
+  "churn_rate": 0.2652,
+  "churn_by_contract_period": [
+    {
+      "group": "1",
+      "members": 2207,
+      "churn_rate": 0.4232
+    },
+    {
+      "group": "6",
+      "members": 833,
+      "churn_rate": 0.1248
+    },
+    {
+      "group": "12",
+      "members": 960,
+      "churn_rate": 0.024
+    }
+  ],
+  "churn_by_lifetime": [
+    {
+      "group": "0-1 months",
+      "members": 1330,
+      "churn_rate": 0.6143
+    },
+    {
+      "group": "2-3 months",
+      "members": 1100,
+      "churn_rate": 0.1882
+    },
+    {
+      "group": "4-6 months",
+      "members": 876,
+      "churn_rate": 0.04
+    },
+    {
+      "group": "7+ months",
+      "members": 694,
+      "churn_rate": 0.0029
+    }
+  ],
+  "churn_by_age_band": [
+    {
+      "group": "under 25",
+      "members": 305,
+      "churn_rate": 0.6623
+    },
+    {
+      "group": "25-29",
+      "members": 1824,
+      "churn_rate": 0.3602
+    },
+    {
+      "group": "30-34",
+      "members": 1682,
+      "churn_rate": 0.1177
+    },
+    {
+      "group": "35+",
+      "members": 189,
+      "churn_rate": 0.0212
+    }
+  ],
+  "churn_by_flag": {
+    "near_location": {
+      "label": "Lives/works near the club",
+      "rate_if_no": 0.3974,
+      "rate_if_yes": 0.2411
+    },
+    "partner": {
+      "label": "Partner-company employee",
+      "rate_if_no": 0.3332,
+      "rate_if_yes": 0.1936
+    },
+    "promo_friends": {
+      "label": "Joined via friend referral",
+      "rate_if_no": 0.3131,
+      "rate_if_yes": 0.158
+    },
+    "group_visits": {
+      "label": "Attends group classes",
+      "rate_if_no": 0.3301,
+      "rate_if_yes": 0.1728
+    },
+    "phone": {
+      "label": "Gave a phone number",
+      "rate_if_no": 0.2668,
+      "rate_if_yes": 0.2651
+    }
+  },
+  "mean_stayed_vs_churned": {
+    "age": {
+      "stayed": 29.977,
+      "churned": 26.99
+    },
+    "lifetime": {
+      "stayed": 4.712,
+      "churned": 0.991
+    },
+    "contract_period": {
+      "stayed": 5.747,
+      "churned": 1.729
+    },
+    "month_to_end_contract": {
+      "stayed": 5.283,
+      "churned": 1.663
+    },
+    "avg_additional_charges_total": {
+      "stayed": 158.446,
+      "churned": 115.083
+    },
+    "avg_class_frequency_total": {
+      "stayed": 2.025,
+      "churned": 1.475
+    },
+    "avg_class_frequency_current_month": {
+      "stayed": 2.028,
+      "churned": 1.045
+    }
+  },
+  "visit_change_current_vs_total": {
+    "stayed": 0.003,
+    "churned": -0.43
+  },
+  "high_risk_segment": {
+    "definition": "1-month contract, joined in the last 0-1 months, no group classes",
+    "members": 644,
+    "share_of_members": 0.161,
+    "churn_rate": 0.8028
+  },
+  "leakage_findings": [
+    {
+      "column": "gender",
+      "univariate_auc": 0.5004,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "near_location",
+      "univariate_auc": 0.5525,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "partner",
+      "univariate_auc": 0.5894,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "promo_friends",
+      "univariate_auc": 0.5849,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "phone",
+      "univariate_auc": 0.5004,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "contract_period",
+      "univariate_auc": 0.7365,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "group_visits",
+      "univariate_auc": 0.5977,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "age",
+      "univariate_auc": 0.7615,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "avg_additional_charges_total",
+      "univariate_auc": 0.6252,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "month_to_end_contract",
+      "univariate_auc": 0.7362,
+      "risk": "low",
+      "reason": "Known at snapshot time, but tightly coupled to contract_period."
+    },
+    {
+      "column": "lifetime",
+      "univariate_auc": 0.8778,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "avg_class_frequency_total",
+      "univariate_auc": 0.6655,
+      "risk": "none",
+      "reason": "No leakage indication."
+    },
+    {
+      "column": "avg_class_frequency_current_month",
+      "univariate_auc": 0.7749,
+      "risk": "high",
+      "reason": "Measured in the same month the churn label refers to, so it partly records the churn itself (churners' visits drop sharply). Excluded from the primary model; allowed only in a documented leakage ablation."
+    }
+  ],
+  "strongest_safe_signals": [
+    {
+      "column": "lifetime",
+      "univariate_auc": 0.8778
+    },
+    {
+      "column": "age",
+      "univariate_auc": 0.7615
+    },
+    {
+      "column": "contract_period",
+      "univariate_auc": 0.7365
+    },
+    {
+      "column": "month_to_end_contract",
+      "univariate_auc": 0.7362
+    },
+    {
+      "column": "avg_class_frequency_total",
+      "univariate_auc": 0.6655
+    }
+  ]
+}
