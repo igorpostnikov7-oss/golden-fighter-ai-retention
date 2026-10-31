@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pandas as pd
 
-from golden_fighter.analysis.schema_spec import COLUMN_SPECS, CROSS_COLUMN_RULES, ID_COLUMN, TARGET
+from golden_fighter.analysis.schema_spec import (
+    COLUMN_SPECS,
+    CROSS_COLUMN_RULES,
+    ID_COLUMN,
+    PREDICTION_TIME,
+    TARGET,
+)
 from golden_fighter.contract.schema import (
     ColumnContract,
     CrossColumnRule,
@@ -60,15 +66,19 @@ def build_contract(clean: pd.DataFrame, clean_path: Path, leakage_findings: list
             sensitive=spec.sensitive,
             leakage_risk=finding["risk"] if finding else spec.leakage_risk,
             leakage_note=(finding["reason"] if finding and finding["risk"] != "none" else spec.leakage_note),
+            available_before_churn=spec.available_before_churn,
+            availability_note=spec.availability_note,
             observed=ObservedStats(min=round(float(col.min()), 4), max=round(float(col.max()), 4),
                                    mean=round(mean, 4)),
         ))
 
     rate = float(clean[TARGET].mean())
-    high_risk = [c.name for c in columns if c.leakage_risk == "high"]
+    high_risk = [c.name for c in columns if c.role == "feature"
+                 and (c.leakage_risk == "high" or not c.available_before_churn)]
     contract = DatasetContract(
         dataset_name="Gym customers features and churn (Kaggle)",
         produced_by="Data Analyst Crew",
+        prediction_time=PREDICTION_TIME,
         clean_data_file=clean_path.name,
         clean_data_sha256=sha256_of_file(clean_path),
         row_count_min=int(len(clean) * MIN_ROW_SHARE),

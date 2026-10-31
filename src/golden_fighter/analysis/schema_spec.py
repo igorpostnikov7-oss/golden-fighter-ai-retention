@@ -41,13 +41,20 @@ class ColumnSpec:
     sensitive: bool = False
     leakage_risk: str = "none"  # none | low | medium | high
     leakage_note: str | None = None
+    # Is the value known at prediction time, i.e. at the start of the month whose churn we predict?
+    available_before_churn: bool = True
+    availability_note: str = "Known from the member's record before the churn month."
 
 
 BINARY = (0, 1)
 
+# Prediction time: the start of the month for which churn is predicted. A feature is only legitimate
+# if its value is fully known at that moment.
+PREDICTION_TIME = "Start of the month for which churn is predicted (monthly snapshot)."
+
 COLUMN_SPECS: tuple[ColumnSpec, ...] = (
     ColumnSpec(ID_COLUMN, "int", "identifier", "Row number in the raw file (1-based), added for traceability.",
-               "id", min=1),
+               "id", min=1, availability_note="Technical row id; not a business fact."),
     ColumnSpec("gender", "int", "feature", "Member gender, anonymised code (0/1).", "category code",
                allowed_values=BINARY, sensitive=True),
     ColumnSpec("near_location", "int", "feature", "Lives or works near the club (1 = yes).", "flag",
@@ -64,20 +71,25 @@ COLUMN_SPECS: tuple[ColumnSpec, ...] = (
     ColumnSpec("age", "int", "feature", "Member age.", "years", min=14, max=90, sensitive=True),
     ColumnSpec("avg_additional_charges_total", "float", "feature",
                "Average spend on extra services (cafe, shop, massage) over the membership.",
-               "currency units as provided by the source (not converted)", min=0, max=1000),
+               "currency units (source, unconverted)", min=0, max=1000),
     ColumnSpec("month_to_end_contract", "int", "feature", "Months left until the current contract ends.", "months",
                min=1, max=12, leakage_risk="low",
                leakage_note="Known at snapshot time, but tightly coupled to contract_period."),
     ColumnSpec("lifetime", "int", "feature", "Months since the member's first visit.", "months", min=0, max=120),
     ColumnSpec("avg_class_frequency_total", "float", "feature",
-               "Average visits per week over the whole membership.", "visits per week", min=0, max=14),
+               "Average visits per week over the whole membership.", "visits per week", min=0, max=14,
+               availability_note=("Assumed to be computed from visit history up to the snapshot. If the source "
+                                  "included the churn month this would need re-checking.")),
     ColumnSpec("avg_class_frequency_current_month", "float", "feature",
                "Average visits per week in the current month.", "visits per week", min=0, max=14,
                leakage_risk="high",
                leakage_note=("Measured in the same month the churn label refers to, so it partly records the "
                              "churn itself (churners' visits drop sharply). Excluded from the primary model; "
-                             "allowed only in a documented leakage ablation.")),
-    ColumnSpec(TARGET, "int", "target", "Member left the club (1) or stayed (0).", "flag", allowed_values=BINARY),
+                             "allowed only in a documented leakage ablation."),
+               available_before_churn=False,
+               availability_note="Only complete at the end of the churn month, i.e. after the prediction time."),
+    ColumnSpec(TARGET, "int", "target", "Member left the club (1) or stayed (0).", "flag", allowed_values=BINARY,
+               available_before_churn=False, availability_note="The outcome itself; known only afterwards."),
 )
 
 SPEC_BY_NAME = {spec.name: spec for spec in COLUMN_SPECS}

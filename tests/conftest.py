@@ -48,8 +48,13 @@ def raw_csv(tmp_path: Path, raw_df: pd.DataFrame) -> Path:
     return path
 
 
-@pytest.fixture
-def analyst_out(tmp_path: Path, raw_csv: Path) -> Path:
-    out_dir = tmp_path / "analyst"
-    run_analyst_pipeline(raw_csv, out_dir)
+@pytest.fixture(scope="session")
+def analyst_out(tmp_path_factory) -> Path:
+    """Crew 1 artifacts built once per test run. Tests must treat them as read-only
+    (test_gate_scenarios verifies they are never modified)."""
+    base = tmp_path_factory.mktemp("session")
+    raw_path = base / "gym_churn.csv"
+    make_raw_df().to_csv(raw_path, index=False)
+    out_dir = base / "analyst"
+    run_analyst_pipeline(raw_path, out_dir)
     return out_dir
