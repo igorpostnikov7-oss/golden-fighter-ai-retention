@@ -9,6 +9,7 @@ A CrewAI Flow that predicts gym-membership churn, built from **two crews with a 
 
 > Status: work in progress. M1 done: deterministic Data Analyst pipeline + dataset contract.
 > M2 done: validation gate + 13 "break it on purpose" scenarios.
+> M3 done: baseline vs Logistic Regression vs Random Forest, evaluation report and model card.
 
 ## Dataset
 Public Kaggle dataset "Gym Customers Features and Churn". See [`data/raw/DATA_SOURCE.md`](data/raw/DATA_SOURCE.md).
@@ -34,6 +35,12 @@ Check the artifacts against the contract (exit code 0 = passed, 1 = failed), the
 .\.venv\Scripts\python.exe -m golden_fighter.contract.gate
 .\.venv\Scripts\python.exe scripts\break_data.py unit_x100     # dollars -> cents: the gate refuses
 .\.venv\Scripts\python.exe scripts\break_data.py --list        # all 13 scenarios
+```
+
+Run the Data Scientist pipeline (plain Python, no API calls). It runs the gate first, then writes
+`features.csv`, `model.joblib`, `evaluation_report.md` and `model_card.md` to `artifacts/scientist/`:
+```powershell
+.\.venv\Scripts\python.exe -m golden_fighter.modeling.pipeline
 ```
 
 Run instructions for the Flow and the app will be added as those milestones land.

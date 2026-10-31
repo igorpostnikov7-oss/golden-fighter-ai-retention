@@ -1,0 +1,333 @@
+{
+  "selected_model": "logistic_regression",
+  "selection_rule": "highest mean 5-fold CV roc_auc on the training set (tie-break: CV PR-AUC); the test set was not used for selection",
+  "threshold": 0.5,
+  "candidates": {
+    "baseline_majority": "Always predicts the overall churn rate (DummyClassifier). Any real model must beat it.",
+    "logistic_regression": "Scaled inputs, L2-regularised logistic regression, balanced class weights.",
+    "random_forest": "300 trees, min 5 members per leaf, balanced class weights."
+  },
+  "results": {
+    "baseline_majority": {
+      "cv": {
+        "roc_auc": {
+          "mean": 0.5,
+          "std": 0.0
+        },
+        "pr_auc": {
+          "mean": 0.2653,
+          "std": 0.0006
+        },
+        "recall": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "precision": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "f1": {
+          "mean": 0.0,
+          "std": 0.0
+        },
+        "accuracy": {
+          "mean": 0.7347,
+          "std": 0.0006
+        }
+      },
+      "test": {
+        "accuracy": 0.735,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0.0,
+        "roc_auc": 0.5,
+        "pr_auc": 0.265,
+        "confusion_matrix": {
+          "tn": 588,
+          "fp": 0,
+          "fn": 212,
+          "tp": 0
+        }
+      },
+      "warnings": []
+    },
+    "logistic_regression": {
+      "cv": {
+        "roc_auc": {
+          "mean": 0.9565,
+          "std": 0.0071
+        },
+        "pr_auc": {
+          "mean": 0.8877,
+          "std": 0.0142
+        },
+        "recall": {
+          "mean": 0.9117,
+          "std": 0.0169
+        },
+        "precision": {
+          "mean": 0.7203,
+          "std": 0.0323
+        },
+        "f1": {
+          "mean": 0.8046,
+          "std": 0.025
+        },
+        "accuracy": {
+          "mean": 0.8822,
+          "std": 0.0168
+        }
+      },
+      "test": {
+        "accuracy": 0.8912,
+        "precision": 0.7432,
+        "recall": 0.9009,
+        "f1": 0.8145,
+        "roc_auc": 0.9568,
+        "pr_auc": 0.9,
+        "confusion_matrix": {
+          "tn": 522,
+          "fp": 66,
+          "fn": 21,
+          "tp": 191
+        }
+      },
+      "warnings": []
+    },
+    "random_forest": {
+      "cv": {
+        "roc_auc": {
+          "mean": 0.9541,
+          "std": 0.0076
+        },
+        "pr_auc": {
+          "mean": 0.8882,
+          "std": 0.0129
+        },
+        "recall": {
+          "mean": 0.8975,
+          "std": 0.0192
+        },
+        "precision": {
+          "mean": 0.7434,
+          "std": 0.0268
+        },
+        "f1": {
+          "mean": 0.813,
+          "std": 0.0202
+        },
+        "accuracy": {
+          "mean": 0.8903,
+          "std": 0.0128
+        }
+      },
+      "test": {
+        "accuracy": 0.8888,
+        "precision": 0.747,
+        "recall": 0.8774,
+        "f1": 0.8069,
+        "roc_auc": 0.9476,
+        "pr_auc": 0.8827,
+        "confusion_matrix": {
+          "tn": 525,
+          "fp": 63,
+          "fn": 26,
+          "tp": 186
+        }
+      },
+      "warnings": []
+    }
+  },
+  "ablation": {
+    "cv": {
+      "roc_auc": {
+        "mean": 0.9764,
+        "std": 0.0048
+      },
+      "pr_auc": {
+        "mean": 0.9444,
+        "std": 0.0091
+      },
+      "recall": {
+        "mean": 0.9247,
+        "std": 0.0204
+      },
+      "precision": {
+        "mean": 0.7867,
+        "std": 0.0285
+      },
+      "f1": {
+        "mean": 0.8498,
+        "std": 0.0199
+      },
+      "accuracy": {
+        "mean": 0.9131,
+        "std": 0.0124
+      }
+    },
+    "test": {
+      "accuracy": 0.92,
+      "precision": 0.8109,
+      "recall": 0.9104,
+      "f1": 0.8578,
+      "roc_auc": 0.9771,
+      "pr_auc": 0.9499,
+      "confusion_matrix": {
+        "tn": 543,
+        "fp": 45,
+        "fn": 19,
+        "tp": 193
+      }
+    },
+    "warnings": [],
+    "extra_columns": [
+      "avg_class_frequency_current_month"
+    ]
+  },
+  "input_features": [
+    "near_location",
+    "partner",
+    "promo_friends",
+    "phone",
+    "contract_period",
+    "group_visits",
+    "age",
+    "avg_additional_charges_total",
+    "month_to_end_contract",
+    "lifetime",
+    "avg_class_frequency_total"
+  ],
+  "engineered_features": [
+    "contract_elapsed_share",
+    "is_new_member",
+    "social_ties"
+  ],
+  "excluded_columns": {
+    "forbidden": [
+      "churn",
+      "member_id",
+      "gender"
+    ],
+    "leakage_or_late": [
+      "avg_class_frequency_current_month"
+    ]
+  },
+  "data": {
+    "rows": 4000,
+    "train_rows": 3200,
+    "test_rows": 800,
+    "train_churn_rate": 0.2653,
+    "test_churn_rate": 0.265,
+    "contract_version": "1.1",
+    "clean_data_sha256": "e792eb7a4f35a5c978270b4e2e5b6652d8f0d1cc33c2a5db35ba00cd19d6aa8b"
+  },
+  "feature_importance": [
+    {
+      "feature": "lifetime",
+      "auc_drop_mean": 0.2101,
+      "auc_drop_std": 0.0183
+    },
+    {
+      "feature": "contract_period",
+      "auc_drop_mean": 0.1549,
+      "auc_drop_std": 0.01
+    },
+    {
+      "feature": "month_to_end_contract",
+      "auc_drop_mean": 0.045,
+      "auc_drop_std": 0.0056
+    },
+    {
+      "feature": "age",
+      "auc_drop_mean": 0.0359,
+      "auc_drop_std": 0.0042
+    },
+    {
+      "feature": "avg_class_frequency_total",
+      "auc_drop_mean": 0.0121,
+      "auc_drop_std": 0.0026
+    },
+    {
+      "feature": "avg_additional_charges_total",
+      "auc_drop_mean": 0.0083,
+      "auc_drop_std": 0.0018
+    },
+    {
+      "feature": "group_visits",
+      "auc_drop_mean": 0.0046,
+      "auc_drop_std": 0.001
+    },
+    {
+      "feature": "promo_friends",
+      "auc_drop_mean": 0.0019,
+      "auc_drop_std": 0.0007
+    },
+    {
+      "feature": "phone",
+      "auc_drop_mean": 0.0003,
+      "auc_drop_std": 0.0004
+    },
+    {
+      "feature": "partner",
+      "auc_drop_mean": 0.0002,
+      "auc_drop_std": 0.0002
+    }
+  ],
+  "fairness": {
+    "gender": [
+      {
+        "group": "0",
+        "members": 389,
+        "actual_churn_rate": 0.2596,
+        "flagged_rate": 0.3188,
+        "recall": 0.8911,
+        "precision": 0.7258
+      },
+      {
+        "group": "1",
+        "members": 411,
+        "actual_churn_rate": 0.2701,
+        "flagged_rate": 0.3236,
+        "recall": 0.9099,
+        "precision": 0.7594
+      }
+    ],
+    "age_band": [
+      {
+        "group": "under 25",
+        "members": 59,
+        "actual_churn_rate": 0.678,
+        "flagged_rate": 0.7119,
+        "recall": 0.975,
+        "precision": 0.9286
+      },
+      {
+        "group": "25-29",
+        "members": 377,
+        "actual_churn_rate": 0.3448,
+        "flagged_rate": 0.4138,
+        "recall": 0.9231,
+        "precision": 0.7692
+      },
+      {
+        "group": "30-34",
+        "members": 328,
+        "actual_churn_rate": 0.128,
+        "flagged_rate": 0.1799,
+        "recall": 0.7619,
+        "precision": 0.5424
+      },
+      {
+        "group": "35+",
+        "members": 36,
+        "actual_churn_rate": 0.0,
+        "flagged_rate": 0.0,
+        "recall": null,
+        "precision": null
+      }
+    ]
+  },
+  "warnings": [],
+  "sklearn_version": "1.9.1",
+  "seed": 42
+}

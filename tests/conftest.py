@@ -7,6 +7,7 @@ import pandas as pd
 import pytest
 
 from golden_fighter.analysis.pipeline import run_analyst_pipeline
+from golden_fighter.modeling.pipeline import run_scientist_pipeline
 
 
 def make_raw_df(n: int = 600, seed: int = 0) -> pd.DataFrame:
@@ -57,4 +58,12 @@ def analyst_out(tmp_path_factory) -> Path:
     make_raw_df().to_csv(raw_path, index=False)
     out_dir = base / "analyst"
     run_analyst_pipeline(raw_path, out_dir)
+    return out_dir
+
+
+@pytest.fixture(scope="session")
+def scientist_out(analyst_out, tmp_path_factory) -> Path:
+    """Crew 2 artifacts built once per test run from the synthetic Crew 1 artifacts (read-only)."""
+    out_dir = tmp_path_factory.mktemp("scientist")
+    run_scientist_pipeline(analyst_out, out_dir)
     return out_dir
