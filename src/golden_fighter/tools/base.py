@@ -43,6 +43,16 @@ class ToolRunLog:
         return any(c["tool"] == tool and c["status"] == "ok" for c in self.calls)
 
 
+SOURCE_CHECK = "source_check"  # entries the source check adds to the log; they are verdicts, not tool runs
+
+
+def tool_execution_counts(calls: list[dict]) -> dict:
+    """Agent tool executions (our free Python tools) kept apart from source-check verdicts."""
+    runs = [c for c in calls if c["tool"] != SOURCE_CHECK]
+    return {"agent_tool_executions": len(runs), "successful_tool_executions": sum(c["status"] == "ok" for c in runs),
+            "source_check_rejections": sum(c["tool"] == SOURCE_CHECK for c in calls)}
+
+
 def contract_reasons(contract: dict) -> dict[str, list[str]]:
     """The contract's own words on why each forbidden or excluded column is kept out of the model."""
     reasons = {}

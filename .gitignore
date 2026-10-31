@@ -27,6 +27,7 @@ artifacts/scientist/features.csv
 *.tmp
 data/scratch/
 artifacts/_broken/
+artifacts/_no_llm/
 
 # Course materials (not ours to publish)
 final_project.html

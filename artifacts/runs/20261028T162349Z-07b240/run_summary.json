@@ -1,0 +1,260 @@
+{
+  "run_id": "20261028T162349Z-07b240",
+  "started_at": "2026-10-28T16:23:49+00:00",
+  "finished_at": "2026-10-28T16:25:01+00:00",
+  "duration_seconds": 72.4,
+  "mode": "llm",
+  "from_artifacts": false,
+  "demo_scenario": null,
+  "model": "claude-haiku-5-5",
+  "status": "succeeded",
+  "exit_code": 0,
+  "failed_stage": null,
+  "failure_reason": null,
+  "validation_issues": [],
+  "stages": [
+    {
+      "name": "preflight",
+      "status": "ok",
+      "seconds": 2.64,
+      "detail": "raw data readable"
+    },
+    {
+      "name": "analyst",
+      "status": "ok",
+      "seconds": 34.02,
+      "detail": ""
+    },
+    {
+      "name": "validation_gate",
+      "status": "ok",
+      "seconds": 0.02,
+      "detail": "VALIDATION GATE (crew handoff gate): PASSED - 88 checks, 0 errors, 0 warnings"
+    },
+    {
+      "name": "scientist",
+      "status": "ok",
+      "seconds": 35.75,
+      "detail": ""
+    }
+  ],
+  "gate": {
+    "stage": "crew handoff gate",
+    "passed": true,
+    "checks_run": 88,
+    "errors": [],
+    "warnings": []
+  },
+  "crews": {
+    "analyst": {
+      "mode": "crewai crew",
+      "model": "claude-haiku-5-5",
+      "status": "ok",
+      "llm_calls": 9,
+      "estimated_cost_usd": 0.003591,
+      "duration_seconds": 34.0,
+      "tool_calls": [
+        {
+          "tool": "profile_raw_data",
+          "status": "ok",
+          "seconds": 0.01,
+          "detail": ""
+        },
+        {
+          "tool": "clean_data",
+          "status": "ok",
+          "seconds": 0.06,
+          "detail": ""
+        },
+        {
+          "tool": "run_eda",
+          "status": "ok",
+          "seconds": 1.71,
+          "detail": ""
+        },
+        {
+          "tool": "write_insights_summary",
+          "status": "ok",
+          "seconds": 0.01,
+          "detail": ""
+        },
+        {
+          "tool": "build_contract",
+          "status": "ok",
+          "seconds": 0.05,
+          "detail": ""
+        },
+        {
+          "tool": "contract_self_check",
+          "status": "ok",
+          "seconds": 0.02,
+          "detail": ""
+        }
+      ],
+      "warnings": [],
+      "prompt_tokens": 17836,
+      "completion_tokens": 3614,
+      "total_tokens": 21450,
+      "cached_prompt_tokens": 8716
+    },
+    "scientist": {
+      "mode": "crewai crew",
+      "model": "claude-haiku-5-5",
+      "status": "ok",
+      "llm_calls": 8,
+      "estimated_cost_usd": 0.003549,
+      "duration_seconds": 35.7,
+      "tool_calls": [
+        {
+          "tool": "inspect_contract",
+          "status": "ok",
+          "seconds": 0.03,
+          "detail": ""
+        },
+        {
+          "tool": "build_features",
+          "status": "ok",
+          "seconds": 0.05,
+          "detail": ""
+        },
+        {
+          "tool": "train_and_compare_models",
+          "status": "ok",
+          "seconds": 5.65,
+          "detail": ""
+        },
+        {
+          "tool": "write_model_reports",
+          "status": "ok",
+          "seconds": 0.01,
+          "detail": ""
+        },
+        {
+          "tool": "write_model_card_summary",
+          "status": "ok",
+          "seconds": 0.0,
+          "detail": ""
+        }
+      ],
+      "warnings": [],
+      "prompt_tokens": 16026,
+      "completion_tokens": 3892,
+      "total_tokens": 19918,
+      "cached_prompt_tokens": 7476
+    }
+  },
+  "totals": {
+    "llm_calls": 17,
+    "prompt_tokens": 33862,
+    "completion_tokens": 7506,
+    "total_tokens": 41368,
+    "cached_prompt_tokens": 16192,
+    "estimated_cost_usd": 0.00714
+  },
+  "artifacts": {
+    "analyst": [
+      {
+        "file": "clean_data.csv",
+        "path": "artifacts/analyst/clean_data.csv",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 332736,
+        "sha256": "e792eb7a4f35a5c978270b4e2e5b6652d8f0d1cc33c2a5db35ba00cd19d6aa8b",
+        "modified": "2026-10-28T16:23:56+00:00"
+      },
+      {
+        "file": "eda_report.html",
+        "path": "artifacts/analyst/eda_report.html",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 461491,
+        "sha256": "d42a973b7c5b0839e7ddd7815f262bf408239c97c6bb8a10d221e563f796392a",
+        "modified": "2026-10-28T16:24:04+00:00"
+      },
+      {
+        "file": "insights.md",
+        "path": "artifacts/analyst/insights.md",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 4653,
+        "sha256": "21ba1408c5518db18d2ac8dd69ff984a5db9bcf06ebc5f690b6615a5be7b0eb0",
+        "modified": "2026-10-28T16:24:10+00:00"
+      },
+      {
+        "file": "dataset_contract.json",
+        "path": "artifacts/analyst/dataset_contract.json",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 11968,
+        "sha256": "82ba7bf35f536da99f94e4ba66e40ad52b23fa4aa06c9b73d6f8c2b08de1e3e5",
+        "modified": "2026-10-28T16:24:16+00:00"
+      }
+    ],
+    "scientist": [
+      {
+        "file": "features.csv",
+        "path": "artifacts/scientist/features.csv",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 316001,
+        "sha256": "6cd760b2d3b4acb615fe8b142cf982bccddfc709a27d4334b9daeb719e2e0cb6",
+        "modified": "2026-10-28T16:24:30+00:00"
+      },
+      {
+        "file": "model.joblib",
+        "path": "artifacts/scientist/model.joblib",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 3877,
+        "sha256": "f4b03d2056ad0893f1444c7c7d92de8a6829b8aff890a84efaefb28ff3038a9c",
+        "modified": "2026-10-28T16:24:42+00:00"
+      },
+      {
+        "file": "evaluation_report.md",
+        "path": "artifacts/scientist/evaluation_report.md",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 5328,
+        "sha256": "ab2fafb8ca0e88aba1ab46d0cc7c1abf9e4f7ab2f0f1fb9e12910336fd4321bf",
+        "modified": "2026-10-28T16:24:52+00:00"
+      },
+      {
+        "file": "model_card.md",
+        "path": "artifacts/scientist/model_card.md",
+        "exists": true,
+        "produced_by_this_run": true,
+        "bytes": 6352,
+        "sha256": "bc99c86e62829b06199bc754206c458dc1e66d6a76e071b033636b321ce47981",
+        "modified": "2026-10-28T16:24:59+00:00"
+      }
+    ]
+  },
+  "metrics": {
+    "selected_model": "logistic_regression",
+    "selection_rule": "highest mean 5-fold CV roc_auc on the training set (tie-break: CV PR-AUC); the test set was not used for selection",
+    "cv_roc_auc_mean": 0.9565,
+    "test": {
+      "roc_auc": 0.9568,
+      "pr_auc": 0.9,
+      "recall": 0.9009,
+      "precision": 0.7432,
+      "f1": 0.8145,
+      "accuracy": 0.8912
+    },
+    "leakage_ablation_test_roc_auc": 0.9771,
+    "train_rows": 3200,
+    "test_rows": 800
+  },
+  "inputs": {
+    "seed": 42,
+    "raw_data": "data/raw/gym_churn.csv",
+    "raw_sha256": "8b6c2c47f178901fdbc7116d65b593ac392c21514dde4ce7e83e788cbd7bc7b6"
+  },
+  "paths": {
+    "analyst_dir": "artifacts/analyst",
+    "scientist_dir": "artifacts/scientist",
+    "run_dir": "artifacts/runs/20261028T162349Z-07b240",
+    "run_summary": "artifacts/runs/20261028T162349Z-07b240/run_summary.json"
+  },
+  "id": "9a2b76ae-5941-42ff-b944-62fdc48f04a6"
+}

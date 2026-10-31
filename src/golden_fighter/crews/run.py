@@ -14,6 +14,7 @@ from golden_fighter.crews.runner import CrewRunError
 from golden_fighter.errors import DataValidationError
 from golden_fighter.llm import LLMSetupError, build_llm
 from golden_fighter.logging_setup import configure_logging
+from golden_fighter.tools.base import tool_execution_counts
 
 log = logging.getLogger(__name__)
 
@@ -41,9 +42,11 @@ def main(argv: list[str] | None = None) -> int:
     log.info("Final answer of the last agent:\n%s", result.final_answer)
     for warning in result.warnings:
         log.warning("%s", warning)
-    log.info("Model %s: %d calls, %s input + %s output tokens, estimated cost %s USD, %.0f s",
-             result.model, result.llm_calls, result.usage.get("prompt_tokens"),
-             result.usage.get("completion_tokens"), result.estimated_cost_usd, result.duration_seconds)
+    counts = tool_execution_counts(result.tool_calls)
+    log.info("Model %s: %d model API calls, %d agent tool executions, %s input + %s output tokens, "
+             "estimated cost %s USD, %.0f s", result.model, result.llm_calls, counts["agent_tool_executions"],
+             result.usage.get("prompt_tokens"), result.usage.get("completion_tokens"), result.estimated_cost_usd,
+             result.duration_seconds)
     return 0
 
 

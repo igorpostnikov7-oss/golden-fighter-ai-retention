@@ -20,7 +20,7 @@ from crewai import Agent, Crew, Process, Task
 from golden_fighter import config
 from golden_fighter.llm import describe_api_error, estimate_cost_usd, llm_call_budget
 from golden_fighter.tools.attribution import SOURCE_RULES, source_check
-from golden_fighter.tools.base import ToolRunLog
+from golden_fighter.tools.base import ToolRunLog, tool_execution_counts
 
 log = logging.getLogger(__name__)
 
@@ -106,7 +106,7 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
     started = time.perf_counter()
     error: Exception | None = None
     final_answer = ""
-    log.info("Starting %s crew with %s (budget: %d model calls)", name, model, max_llm_calls)
+    log.info("Starting %s crew with %s (budget: %d model API calls)", name, model, max_llm_calls)
     with llm_call_budget(max_llm_calls) as budget:
         try:
             final_answer = crew.kickoff().raw or ""
@@ -117,7 +117,8 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
     usage = {k: usage_after[k] - usage_before.get(k, 0) for k in usage_after if isinstance(usage_after[k], int)}
     record = {
         "timestamp": datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        "crew": name, "model": model, "llm_calls": budget["calls"], "usage": usage,
+        "crew": name, "model": model, "llm_calls": budget["calls"], **tool_execution_counts(run_log.calls),
+        "usage": usage,
         "estimated_cost_usd": estimate_cost_usd(model, usage.get("prompt_tokens", 0),
                                                 usage.get("completion_tokens", 0)),
         "duration_seconds": round(time.perf_counter() - started, 1),
@@ -131,6 +132,7 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
 
     if run_log.blocked_by is not None:  # the gate said no: that verdict wins over anything the agent wrote
         fail("validation_failed", str(run_log.blocked_by))
+        run_log.blocked_by.crew_record = record  # so the Flow can still report this run's usage and cost
         raise run_log.blocked_by
     if error is not None:
         source_failures = [c["detail"] for c in run_log.calls if c["tool"] == "source_check"]
@@ -154,8 +156,9 @@ def run_crew(name: str, crew: Crew, llm, run_log: ToolRunLog, expected_outputs: 
                 for tool in optional_tools if not run_log.succeeded(tool)]
     record.update(status="ok", warnings=warnings)
     _append_run_log(record)
-    log.info("%s crew finished: %d model calls, %s tokens, estimated cost %s USD", name, budget["calls"],
-             usage.get("total_tokens"), record["estimated_cost_usd"])
+    log.info("%s crew finished: %d model API calls, %d agent tool executions, %s tokens, estimated cost %s USD",
+             name, budget["calls"], record["agent_tool_executions"], usage.get("total_tokens"),
+             record["estimated_cost_usd"])
     return CrewRunResult(crew=name, model=model, status="ok", final_answer=final_answer,
                          llm_calls=budget["calls"], usage=usage, estimated_cost_usd=record["estimated_cost_usd"],
                          duration_seconds=record["duration_seconds"], tool_calls=run_log.calls,
