@@ -237,11 +237,59 @@ def test_break_demo_proves_the_flow_stops_before_modelling(project_copy):
     validated = _fingerprints(project_copy / "artifacts" / "analyst", project_copy / "artifacts" / "scientist")
     assert flow_main.main(["--demo-break", "unit_x100"]) == 1
     demo = project_copy / "artifacts" / "_broken"
-    assert not (demo / "unit_x100_scientist" / "model.joblib").exists()
+    assert not list(demo.rglob("model.joblib")) and not list(demo.rglob("features.csv"))
     (summary_path,) = demo.glob("runs/*/run_summary.json")
     summary = json.loads(summary_path.read_text(encoding="utf-8"))
     assert summary["demo_scenario"] == "unit_x100" and summary["failed_stage"] == "validation_gate"
     assert (summary_path.parent / FAILURE_REPORT_FILE).exists()
+    assert _fingerprints(project_copy / "artifacts" / "analyst",
+                         project_copy / "artifacts" / "scientist") == validated
+
+
+def _demo_summaries(demo: Path) -> list[dict]:
+    return [json.loads(p.read_text(encoding="utf-8")) for p in sorted(demo.glob("runs/*/run_summary.json"))]
+
+
+def test_break_demo_leaves_folders_from_older_versions_alone(project_copy):
+    """Folders an earlier version wrote (no demo-copy marker) are neither reused nor deleted, and do not crash."""
+    demo = project_copy / "artifacts" / "_broken"
+    old = {demo / "unit_x100" / "clean_data.csv": "old copy\n", demo / "unit_x100" / "notes.txt": "keep me\n",
+           demo / "unit_x100_scientist" / "model.joblib": "old model\n"}
+    for path, text in old.items():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    validated = _fingerprints(project_copy / "artifacts" / "analyst", project_copy / "artifacts" / "scientist")
+
+    assert flow_main.main(["--demo-break", "unit_x100"]) == 1  # the gate refuses; no ValueError
+
+    assert {path: path.read_text(encoding="utf-8") for path in old} == old
+    (summary,) = _demo_summaries(demo)
+    assert summary["status"] == "validation_failed" and summary["failed_stage"] == "validation_gate"
+    assert summary["crews"] == {} and not summary["totals"].get("model_api_calls")
+    assert (demo / "runs" / summary["run_id"] / FAILURE_REPORT_FILE).exists()
+    new_models = [p for p in demo.rglob("model.joblib") if p not in old]
+    assert not new_models  # Crew 2 never ran
+    assert _fingerprints(project_copy / "artifacts" / "analyst",
+                         project_copy / "artifacts" / "scientist") == validated
+
+
+def test_repeated_break_demos_use_fresh_folders_and_keep_earlier_ones(project_copy):
+    demo = project_copy / "artifacts" / "_broken"
+    validated = _fingerprints(project_copy / "artifacts" / "analyst", project_copy / "artifacts" / "scientist")
+    assert flow_main.main(["--demo-break", "unit_x100"]) == 1
+    (first,) = [d for d in demo.iterdir() if d.name != "runs"]
+    first_files = _fingerprints(first / "analyst")
+    assert flow_main.main(["--demo-break", "unit_x100"]) == 1
+    assert flow_main.main(["--demo-break", "drop_column"]) == 1
+
+    folders = sorted(d.name for d in demo.iterdir() if d.name != "runs")
+    assert len(folders) == 3 and folders[0].startswith("drop_column-") and folders[1].startswith("unit_x100-")
+    assert _fingerprints(first / "analyst") == first_files  # an earlier demo copy is left as it was
+    summaries = _demo_summaries(demo)
+    assert len(summaries) == 3 and len({s["run_id"] for s in summaries}) == 3
+    assert all(s["failed_stage"] == "validation_gate" for s in summaries)
+    assert all((demo / "runs" / s["run_id"] / FAILURE_REPORT_FILE).exists() for s in summaries)
+    assert not list(demo.rglob("model.joblib"))
     assert _fingerprints(project_copy / "artifacts" / "analyst",
                          project_copy / "artifacts" / "scientist") == validated
 

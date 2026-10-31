@@ -292,11 +292,27 @@ def run_flow(settings: FlowSettings | None = None, llm=None) -> FlowState:
     return flow.state
 
 
+def _new_demo_dir(base: Path, scenario: str) -> Path:
+    """A new, uniquely named folder for one break demo. Existing folders, including ones written by earlier
+    versions without the demo-copy marker, are never reused, changed or deleted."""
+    base.mkdir(parents=True, exist_ok=True)
+    for _ in range(5):
+        folder = base / f"{scenario}-{datetime.now(timezone.utc):%Y%m%dT%H%M%S%fZ}-{uuid.uuid4().hex[:6]}"
+        try:
+            folder.mkdir()  # fails instead of reusing if the name is already taken
+            return folder
+        except FileExistsError:
+            continue
+    raise FileExistsError(f"could not create a new demo folder in {base}")
+
+
 def demo_settings(scenario: str) -> FlowSettings:
-    """Break a COPY of Crew 1's artifacts and point the Flow at it. Real artifacts are never touched."""
+    """Break a COPY of Crew 1's artifacts in a fresh folder and point the Flow at it. Real artifacts are never
+    touched; the run summaries of all demos stay together in artifacts/_broken/runs/."""
     base = config.ARTIFACTS_DIR / "_broken"  # gitignored
-    broken = make_broken_copy(config.ANALYST_DIR, scenario, base / scenario)
-    return FlowSettings(analyst_dir=broken, scientist_dir=base / f"{scenario}_scientist", runs_dir=base / "runs",
+    demo_dir = _new_demo_dir(base, scenario)
+    broken = make_broken_copy(config.ANALYST_DIR, scenario, demo_dir / "analyst")
+    return FlowSettings(analyst_dir=broken, scientist_dir=demo_dir / "scientist", runs_dir=base / "runs",
                         use_llm=False, from_artifacts=True, demo_scenario=scenario)
 
 
